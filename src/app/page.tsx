@@ -210,7 +210,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="flex flex-col h-screen">
+        <SidebarInset className="flex flex-col">
             <header className="flex items-center justify-between p-4 border-b bg-card z-10">
                 <div className="flex items-center gap-2">
                     <SidebarTrigger>
