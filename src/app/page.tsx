@@ -19,7 +19,7 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { ConversationHistory } from '@/components/conversation-history';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { DebugView } from '@/components/debug-view';
 
 const GUARDRAILS_URL = "/api/guardrails";
