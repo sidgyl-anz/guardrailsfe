@@ -115,11 +115,11 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     const hasGuardrailInfo = !!message.guardrailResult;
 
     return (
-        <div className={cn('group flex items-start gap-4 animate-in fade-in', !isUser ? 'justify-end' : '')}>
-            {isUser && (
-                <Avatar className="h-10 w-10">
-                    <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
-                        <User />
+        <div className={cn('group flex items-start gap-4 animate-in fade-in', isUser ? 'justify-end' : 'justify-start')}>
+            {!isUser && (
+                 <Avatar className="h-10 w-10 border border-primary/20">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
+                        <HeartPulse />
                     </AvatarFallback>
                 </Avatar>
             )}
@@ -155,7 +155,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         size="icon"
                         className={cn(
                             "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-100",
-                            !isUser ? "-left-10" : "-right-10",
+                            isUser ? "-left-10" : "-right-10",
                         )}
                         onClick={onGuardrailClick}
                     >
@@ -165,10 +165,10 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                 )}
             </div>
 
-            {!isUser && (
-                 <Avatar className="h-10 w-10 border border-primary/20">
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
-                        <HeartPulse />
+            {isUser && (
+                <Avatar className="h-10 w-10">
+                    <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
+                        <User />
                     </AvatarFallback>
                 </Avatar>
             )}
@@ -178,15 +178,15 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
 
 export function LoadingMessage() {
     return (
-        <div className='group flex items-start gap-4 animate-in fade-in justify-end'>
-            <div className="max-w-prose rounded-lg p-4 shadow-md bg-card flex items-center h-[52px]">
-                 <div className="h-6 w-1 animate-pulse bg-primary rounded-full" />
-            </div>
-            <Avatar className="h-10 w-10 border border-primary/20 opacity-0">
-                <AvatarFallback>
+        <div className='group flex items-center justify-start gap-4 animate-in fade-in h-[52px]'>
+             <Avatar className="h-10 w-10 border border-primary/20">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
                     <HeartPulse />
                 </AvatarFallback>
             </Avatar>
+            <div className="max-w-prose rounded-lg p-4 shadow-md bg-card flex items-center h-full">
+                 <div className="h-2 w-2 animate-pulse bg-primary rounded-full" />
+            </div>
         </div>
     );
 }
