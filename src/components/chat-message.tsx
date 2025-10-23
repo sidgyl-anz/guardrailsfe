@@ -115,8 +115,8 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     const hasGuardrailInfo = !!message.guardrailResult;
 
     return (
-        <div className={cn('group flex items-start gap-4 animate-in fade-in', isUser ? 'justify-end' : 'justify-start')}>
-            {!isUser && (
+        <div className={cn('group flex items-start gap-4 animate-in fade-in', !isUser ? 'justify-end' : 'justify-start')}>
+            {isUser && (
                  <Avatar className="h-10 w-10 border border-primary/20">
                     <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
                         <HeartPulse />
@@ -142,7 +142,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         "font-body text-base leading-relaxed",
                         message.isBlocked ? "text-muted-foreground italic whitespace-pre-wrap" : ""
                     )}>
-                        {!isUser ? (
+                        {isUser ? (
                              <MemoizedReactMarkdown content={message.content} references={message.references || []} />
                         ) : (
                            <div className="whitespace-pre-wrap">{message.content}</div>
@@ -155,7 +155,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         size="icon"
                         className={cn(
                             "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-100",
-                            isUser ? "-left-10" : "-right-10",
+                            !isUser ? "-left-10" : "-right-10",
                         )}
                         onClick={onGuardrailClick}
                     >
@@ -165,7 +165,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                 )}
             </div>
             
-            {isUser && (
+            {!isUser && (
                 <Avatar className="h-10 w-10">
                     <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
                         <User />
