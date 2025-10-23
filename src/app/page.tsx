@@ -280,7 +280,7 @@ export default function Home() {
           <main className="flex-1 overflow-y-auto" ref={viewportRef}>
           <div className="p-4 space-y-4 pb-32">
               {isLoadingMessages && !messages && (
-                  <div className="flex justify-center p-8"><LoadingMessage /></div>
+                  <LoadingMessage />
               )}
               {!user && !isUserLoading ? (
                   <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
