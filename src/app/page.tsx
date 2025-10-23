@@ -249,7 +249,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="flex flex-col h-screen overflow-hidden">
+        <SidebarInset className="w-full h-full flex flex-col overflow-hidden">
           <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
               <div className="flex items-center gap-2">
                   <SidebarTrigger>
@@ -290,7 +290,7 @@ export default function Home() {
           </Collapsible>
 
           <main className="flex-1 overflow-y-auto" ref={viewportRef}>
-            <div className="p-4 space-y-4 pb-32">
+            <div className="p-4 space-y-4 pb-4">
                 {isLoadingMessages && !messages && (
                     <div className="flex justify-start">
                         <LoadingMessage />
@@ -330,7 +330,7 @@ export default function Home() {
             </div>
           </main>
 
-          <footer className="p-4 bg-card border-t flex-shrink-0 sticky bottom-0 z-10">
+          <footer className="p-4 bg-card border-t flex-shrink-0">
             <div className="max-w-2xl mx-auto">
               <form onSubmit={handleSubmit} className="relative">
                   <Textarea
@@ -368,3 +368,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
