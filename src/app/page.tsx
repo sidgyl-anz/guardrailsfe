@@ -22,7 +22,7 @@ import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DebugView } from '@/components/debug-view';
 
-const GUARDRAILS_API_ROUTE = "/api/guardrails";
+const GUARDRAILS_URL = "https://guardrails-675059836631.us-central1.run.app/process";
 const GUARDRAIL_TIMEOUT = 120000; // 2 minutes
 
 type ApiTransaction = {
@@ -77,12 +77,12 @@ export default function Home() {
 
   const callGuardrails = async (data: { user_prompt?: string; llm_response?: string }) => {
     if (!useGuardrails) return { is_safe: true, reason: 'guardrails_disabled' };
-
+  
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), GUARDRAIL_TIMEOUT);
-
+  
     try {
-      const response = await fetch(GUARDRAILS_API_ROUTE, {
+      const response = await fetch(GUARDRAILS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -92,23 +92,31 @@ export default function Home() {
       if (!response.ok) {
         // Handle server-side timeouts (like 504) gracefully
         if (response.status === 504) {
-             toast({
-                variant: 'destructive',
-                title: 'Guardrail Service Timeout',
-                description: 'The safety check took too long. The service may be starting up. Please try again in a moment.',
-            });
-            return null; // indicate failure
+          toast({
+            variant: 'destructive',
+            title: 'Guardrail Service Timeout',
+            description: 'The safety check took too long. The service may be starting up. Please try again in a moment.',
+          });
+          return null; // indicate failure
         }
-        throw new Error(`Guardrails API responded with status ${response.status}`);
+        let errorDetails = `Guardrails API responded with status ${response.status}`;
+        try {
+            const errorData = await response.json();
+            errorDetails = errorData.error?.message || JSON.stringify(errorData);
+        } catch (e) {
+            // If the error response isn't JSON, use the raw text.
+            errorDetails = await response.text();
+        }
+        throw new Error(errorDetails);
       }
       return await response.json();
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
         toast({
-            variant: 'destructive',
-            title: 'Guardrail Service Timeout',
-            description: 'The safety check took too long. The service may be starting up. Please try again in a moment.',
+          variant: 'destructive',
+          title: 'Guardrail Service Timeout',
+          description: 'The safety check took too long. The service may be starting up. Please try again in a moment.',
         });
         return null;
       }
@@ -116,7 +124,7 @@ export default function Home() {
       toast({
         variant: 'destructive',
         title: 'Guardrail Service Error',
-        description: 'Could not connect to the safety guardrail service. Please try again later.',
+        description: `Could not connect to the safety guardrail service: ${error.message}`,
       });
       return null;
     }
@@ -242,7 +250,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="flex flex-col h-screen overflow-hidden">
+        <SidebarInset className="flex flex-col h-screen max-h-screen overflow-hidden">
           <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
               <div className="flex items-center gap-2">
                   <SidebarTrigger>
@@ -282,9 +290,8 @@ export default function Home() {
             </CollapsibleContent>
           </Collapsible>
 
-          <div className="relative flex-1">
-            <main className="absolute inset-0 overflow-y-auto" ref={viewportRef}>
-            <div className="p-4 space-y-4 pb-32">
+          <main className="flex-1 overflow-y-auto" ref={viewportRef}>
+            <div className="p-4 space-y-4">
                 {isLoadingMessages && !messages && (
                     <div className="flex justify-start">
                         <LoadingMessage />
@@ -316,15 +323,15 @@ export default function Home() {
                     />
                     ))
                 )}
-                 {isLoading && !messages?.some(m => m.role === 'user' && m.content === input) && (
+                 {isLoading && (
                     <div className="flex justify-start">
                         <LoadingMessage />
                     </div>
                 )}
             </div>
-            </main>
+          </main>
 
-            <footer className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background/80 to-transparent">
+          <footer className="p-4 bg-card border-t flex-shrink-0">
             <div className="max-w-2xl mx-auto">
               <form onSubmit={handleSubmit} className="relative">
                   <Textarea
@@ -349,8 +356,7 @@ export default function Home() {
                   </div>
               </form>
             </div>
-            </footer>
-          </div>
+          </footer>
         </SidebarInset>
       </SidebarProvider>
       <GuardrailResultDialog
@@ -363,5 +369,7 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     
