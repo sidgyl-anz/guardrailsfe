@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, FormEvent } from 'react';
 import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { Send, HeartPulse, Code, LogIn, Menu } from 'lucide-react';
+import { Send, HeartPulse, Code, LogIn, Menu, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
@@ -11,8 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 import { type ChatMessageType, type Conversation } from '@/lib/types';
 import { ChatMessage, LoadingMessage } from '@/components/chat-message';
 import { SettingsDialog } from '@/components/settings-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { DebugView } from '@/components/debug-view';
 import { safeHealthChat } from '@/ai/flows/chat';
 import { GuardrailResultDialog } from '@/components/guardrail-result-dialog';
 import { AuthDialog } from '@/components/auth-dialog';
@@ -21,6 +19,8 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { ConversationHistory } from '@/components/conversation-history';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useApiTransaction } from '@/context/api-transaction-context';
+import Link from 'next/link';
 
 const GUARDRAILS_URL = "/api/guardrails";
 const GUARDRAIL_TIMEOUT = 120000; // 2 minutes
@@ -29,10 +29,9 @@ export default function Home() {
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [lastApiTransaction, setLastApiTransaction] = useState<{ request: any; response: any; } | null>(null);
   const [selectedGuardrailResult, setSelectedGuardrailResult] = useState<any>(null);
-  const [isDebugOpen, setIsDebugOpen] = useState(false);
-
+  
+  const { setLastApiTransaction } = useApiTransaction();
   const { searchDomains, systemPrompt, useGuardrails, isSettingsReady } = useSettings();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -122,7 +121,6 @@ export default function Home() {
     if (!input.trim() || isLoading || !isSettingsReady || !user || !firestore) return;
 
     setIsLoading(true);
-    setIsDebugOpen(false);
 
     let currentConversationId = activeConversation?.id;
 
@@ -167,7 +165,6 @@ export default function Home() {
     addDocumentNonBlocking(messagesRef, userMessage);
     if (isInputBlocked) {
       setLastApiTransaction({ request: {user_prompt: input}, response: inputGuardrailResult });
-      setIsDebugOpen(true);
     }
     setInput('');
     
@@ -190,7 +187,6 @@ export default function Home() {
     try {
       const data = await safeHealthChat(requestBody);
       setLastApiTransaction({ request: requestBody, response: data });
-      setIsDebugOpen(true);
 
       let aiResponseContent = data.choices[0].message.content;
       // Correctly map search_results to references
@@ -220,7 +216,6 @@ export default function Home() {
         description: error.message || 'Failed to get a response from the AI.',
       });
       setLastApiTransaction({ request: requestBody, response: { error: error.message } });
-      setIsDebugOpen(true);
     } finally {
       setIsLoading(false);
     }
@@ -251,6 +246,14 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2">
                     <SettingsDialog />
+                     <Link href="/debug" passHref>
+                        <Button variant="ghost" size="icon" asChild>
+                            <a target="_blank">
+                                <Code className="h-5 w-5" />
+                                <span className="sr-only">Debug View</span>
+                            </a>
+                        </Button>
+                    </Link>
                     {isUserLoading ? (
                     <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
                     ) : user ? (
@@ -297,22 +300,6 @@ export default function Home() {
             </main>
 
             <footer className="flex-shrink-0 p-4 border-t bg-card z-10">
-            {lastApiTransaction && (
-                <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen} className="mb-4">
-                <CollapsibleTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-full justify-start">
-                    <Code className="h-4 w-4 mr-2" />
-                    Last API Transaction
-                    </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                    <DebugView 
-                    request={lastApiTransaction.request} 
-                    response={lastApiTransaction.response} 
-                    />
-                </CollapsibleContent>
-                </Collapsible>
-            )}
             <form onSubmit={handleSubmit} className="relative">
                 <Textarea
                 value={input}
@@ -348,5 +335,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
