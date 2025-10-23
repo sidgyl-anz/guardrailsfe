@@ -17,7 +17,7 @@ interface ChatMessageProps {
   onGuardrailClick: () => void;
 }
 
-const MemoizedReactMarkdown = ({ content, references }: { content: string, references: ChatMessageType['references'] }) => {
+const MemoizedReactMarkdown = React.memo(({ content, references }: { content: string, references: ChatMessageType['references'] }) => {
     return (
         <ReactMarkdown
             remarkPlugins={[remarkGfm]}
@@ -27,7 +27,8 @@ const MemoizedReactMarkdown = ({ content, references }: { content: string, refer
                     return <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" />;
                 },
                 p: ({ node, ...props }) => {
-                    const contentWithCitations = React.Children.map(props.children, (child) => {
+                    const childrenArray = React.Children.toArray(props.children);
+                    const processedChildren = childrenArray.map((child, index) => {
                         if (typeof child === 'string') {
                             const citationRegex = /(\[\d+\])+/g;
                             const parts: (string | JSX.Element)[] = [];
@@ -40,21 +41,23 @@ const MemoizedReactMarkdown = ({ content, references }: { content: string, refer
                                     parts.push(child.substring(lastIndex, match.index));
                                 }
 
-                                // Handle the citation group
+                                // Handle the citation group (e.g., "[1][2]")
                                 const citationNumbers = match[0].match(/\d+/g)?.map(n => parseInt(n, 10)) || [];
-                                const citationLinks = citationNumbers.map(number => {
-                                    const reference = references?.[number - 1];
-                                    return {
-                                        number,
-                                        uri: reference?.uri || '',
-                                        title: reference?.title || `Source [${number}]`,
-                                    };
-                                }).filter(ref => ref.uri);
-
+                                
+                                const citationLinks = citationNumbers
+                                    .map(number => {
+                                        const reference = references?.[number - 1]; // citations are 1-based
+                                        return {
+                                            number,
+                                            uri: reference?.uri || '',
+                                            title: reference?.title || `Source [${number}]`,
+                                        };
+                                    })
+                                    .filter(ref => ref.uri);
 
                                 if (citationLinks.length > 0) {
                                     parts.push(
-                                        <Popover key={match.index}>
+                                        <Popover key={`${match.index}-${index}`}>
                                             <PopoverTrigger asChild>
                                                 <span className="text-primary font-semibold cursor-pointer">
                                                     {citationLinks.map((link) => `[${link.number}]`).join('')}
@@ -79,8 +82,9 @@ const MemoizedReactMarkdown = ({ content, references }: { content: string, refer
                                             </PopoverContent>
                                         </Popover>
                                     );
+                                } else {
+                                     parts.push(match[0]); // If no valid link found, render as text
                                 }
-
 
                                 lastIndex = citationRegex.lastIndex;
                             }
@@ -90,19 +94,20 @@ const MemoizedReactMarkdown = ({ content, references }: { content: string, refer
                                 parts.push(child.substring(lastIndex));
                             }
                             
-                            return <>{parts}</>;
+                            return <React.Fragment key={index}>{parts}</React.Fragment>;
                         }
                         return child;
                     });
                     
-                    return <p {...props}>{contentWithCitations}</p>;
+                    return <p {...props}>{processedChildren}</p>;
                 },
             }}
         >
             {content}
         </ReactMarkdown>
     );
-};
+});
+MemoizedReactMarkdown.displayName = 'MemoizedReactMarkdown';
 
 
 export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
