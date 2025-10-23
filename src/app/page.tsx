@@ -233,7 +233,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <div className="flex flex-1 flex-col h-screen overflow-hidden">
             <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <SidebarTrigger>
@@ -246,14 +246,12 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2">
                     <SettingsDialog />
-                     <Link href="/debug" passHref>
-                        <Button variant="ghost" size="icon" asChild>
-                            <a target="_blank">
-                                <Code className="h-5 w-5" />
-                                <span className="sr-only">Debug View</span>
-                            </a>
-                        </Button>
-                    </Link>
+                    <Button variant="ghost" size="icon" asChild>
+                        <Link href="/debug" target="_blank">
+                            <Code className="h-5 w-5" />
+                            <span className="sr-only">Debug View</span>
+                        </Link>
+                    </Button>
                     {isUserLoading ? (
                     <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
                     ) : user ? (
@@ -335,3 +333,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
