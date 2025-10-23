@@ -19,10 +19,10 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { ConversationHistory } from '@/components/conversation-history';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DebugView } from '@/components/debug-view';
 
-const GUARDRAILS_URL = "/api/guardrails";
+const GUARDRAILS_API_ROUTE = "/api/guardrails";
 const GUARDRAIL_TIMEOUT = 120000; // 2 minutes
 
 type ApiTransaction = {
@@ -82,7 +82,7 @@ export default function Home() {
     const timeoutId = setTimeout(() => controller.abort(), GUARDRAIL_TIMEOUT);
 
     try {
-      const response = await fetch(GUARDRAILS_URL, {
+      const response = await fetch(GUARDRAILS_API_ROUTE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -264,7 +264,7 @@ export default function Home() {
               </div>
           </header>
 
-          <Collapsible open={isDebugViewVisible}>
+          <Collapsible open={isDebugViewVisible} onOpenChange={setIsDebugViewVisible}>
             <CollapsibleContent>
               {lastApiTransaction && (
                 <div className="p-4 bg-muted/50 border-b">
@@ -280,7 +280,9 @@ export default function Home() {
           <main className="flex-1 overflow-y-auto" ref={viewportRef}>
           <div className="p-4 space-y-4 pb-32">
               {isLoadingMessages && !messages && (
-                  <LoadingMessage />
+                  <div className="flex justify-start pl-14">
+                    <LoadingMessage />
+                  </div>
               )}
               {!user && !isUserLoading ? (
                   <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
@@ -308,7 +310,11 @@ export default function Home() {
                   />
                   ))
               )}
-              {isLoading && <LoadingMessage />}
+              {isLoading && (
+                 <div className="flex justify-start">
+                    <LoadingMessage />
+                 </div>
+              )}
           </div>
           </main>
 
