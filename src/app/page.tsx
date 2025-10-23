@@ -210,7 +210,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="flex flex-col h-screen">
+        <SidebarInset className="flex flex-col h-screen overflow-hidden">
             <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <SidebarTrigger>
@@ -233,7 +233,7 @@ export default function Home() {
                 </div>
             </header>
 
-            <main className="flex-grow overflow-y-auto" ref={viewportRef}>
+            <main className="flex-1 overflow-y-auto" ref={viewportRef}>
             <div className="p-4 space-y-4">
                 {isLoadingMessages && !messages && (
                     <div className="flex justify-center p-8"><LoadingMessage /></div>
