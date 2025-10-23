@@ -210,7 +210,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="flex flex-col h-screen overflow-hidden">
+        <SidebarInset className="flex flex-col">
             <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <SidebarTrigger>
@@ -233,7 +233,7 @@ export default function Home() {
                 </div>
             </header>
 
-            <main className="flex-1 overflow-y-auto" ref={viewportRef}>
+            <main className="flex-1 overflow-y-auto pb-32" ref={viewportRef}>
             <div className="p-4 space-y-4">
                 {isLoadingMessages && !messages && (
                     <div className="flex justify-center p-8"><LoadingMessage /></div>
@@ -268,7 +268,7 @@ export default function Home() {
             </div>
             </main>
 
-            <footer className="p-4 border-t bg-card z-10 flex-shrink-0">
+            <footer className="fixed bottom-0 left-0 md:left-[16rem] group-data-[collapsible=icon]:md:left-[3rem]  right-0 bg-card z-10 p-4 border-t">
             {lastApiTransaction && (
                 <Collapsible className="mb-4">
                 <CollapsibleTrigger asChild>
@@ -320,3 +320,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
