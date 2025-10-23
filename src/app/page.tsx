@@ -31,6 +31,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [lastApiTransaction, setLastApiTransaction] = useState<{ request: any; response: any; } | null>(null);
   const [selectedGuardrailResult, setSelectedGuardrailResult] = useState<any>(null);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
 
   const { searchDomains, systemPrompt, useGuardrails, isSettingsReady } = useSettings();
   const { user, isUserLoading } = useUser();
@@ -90,8 +91,12 @@ export default function Home() {
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
-        console.warn("Guardrails API call timed out. Passing through.");
-        return { is_safe: true, reason: "passthrough_timeout" };
+        toast({
+            variant: 'destructive',
+            title: 'Guardrail Service Timeout',
+            description: 'The safety check took too long. The service may be starting up. Please try again in a moment.',
+        });
+        return null;
       }
       console.error("Guardrails API error:", error);
       toast({
@@ -108,7 +113,7 @@ export default function Home() {
     if (!input.trim() || isLoading || !isSettingsReady || !user || !firestore) return;
 
     setIsLoading(true);
-    setLastApiTransaction(null);
+    setIsDebugOpen(false);
 
     let currentConversationId = activeConversation?.id;
 
@@ -133,7 +138,14 @@ export default function Home() {
 
     // 1. Handle user's message and guardrail
     const inputGuardrailResult = await callGuardrails({ user_prompt: input });
-    const isInputBlocked = !inputGuardrailResult || !inputGuardrailResult.is_safe;
+    
+    // If timeout or other error, stop processing
+    if (inputGuardrailResult === null) {
+      setIsLoading(false);
+      return;
+    }
+    
+    const isInputBlocked = !inputGuardrailResult.is_safe;
     
     const userMessageContent = isInputBlocked ? input : (inputGuardrailResult.prompt_processed || input);
     const userMessage: Omit<ChatMessageType, 'id'> = {
@@ -144,7 +156,10 @@ export default function Home() {
       isBlocked: isInputBlocked,
     };
     addDocumentNonBlocking(messagesRef, userMessage);
-    setLastApiTransaction(isInputBlocked ? { request: {user_prompt: input}, response: inputGuardrailResult } : null);
+    if (isInputBlocked) {
+      setLastApiTransaction({ request: {user_prompt: input}, response: inputGuardrailResult });
+      setIsDebugOpen(true);
+    }
     setInput('');
     
     if (isInputBlocked) {
@@ -166,6 +181,7 @@ export default function Home() {
     try {
       const data = await safeHealthChat(requestBody);
       setLastApiTransaction({ request: requestBody, response: data });
+      setIsDebugOpen(true);
 
       let aiResponseContent = data.choices[0].message.content;
       // Correctly map search_results to references
@@ -173,11 +189,13 @@ export default function Home() {
 
       // 3. Handle AI response and guardrail
       const outputGuardrailResult = await callGuardrails({ llm_response: aiResponseContent });
+
+      // If timeout or other error, we can still show the AI response but without guardrail info
       const isAiResponseBlocked = !outputGuardrailResult || !outputGuardrailResult.is_safe;
       
       const assistantMessage: Omit<ChatMessageType, 'id'> = {
         role: 'assistant',
-        content: isAiResponseBlocked ? "I cannot provide a response to this." : (outputGuardrailResult.llm_response_processed || aiResponseContent),
+        content: isAiResponseBlocked ? "I cannot provide a response to this." : (outputGuardrailResult?.llm_response_processed || aiResponseContent),
         createdAt: serverTimestamp(),
         references,
         guardrailResult: outputGuardrailResult,
@@ -193,6 +211,7 @@ export default function Home() {
         description: error.message || 'Failed to get a response from the AI.',
       });
       setLastApiTransaction({ request: requestBody, response: { error: error.message } });
+      setIsDebugOpen(true);
     } finally {
       setIsLoading(false);
     }
@@ -210,7 +229,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="flex flex-col">
+        <div className="flex-1 flex flex-col h-screen overflow-hidden">
             <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <SidebarTrigger>
@@ -268,9 +287,9 @@ export default function Home() {
             </div>
             </main>
 
-            <footer className="fixed bottom-0 left-0 md:left-[16rem] group-data-[collapsible=icon]:md:left-[3rem]  right-0 bg-card z-10 p-4 border-t">
+            <footer className="flex-shrink-0 p-4 border-t bg-card z-10">
             {lastApiTransaction && (
-                <Collapsible className="mb-4">
+                <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen} className="mb-4">
                 <CollapsibleTrigger asChild>
                     <Button variant="outline" size="sm" className="w-full justify-start">
                     <Code className="h-4 w-4 mr-2" />
@@ -308,7 +327,7 @@ export default function Home() {
                 </div>
             </form>
             </footer>
-        </SidebarInset>
+        </div>
       </SidebarProvider>
       <GuardrailResultDialog
         result={selectedGuardrailResult}
