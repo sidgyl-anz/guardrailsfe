@@ -58,27 +58,16 @@ const chatFlow = ai.defineFlow(
     });
 
     if (!response.ok) {
-      let errorDetails = `Perplexity API responded with status ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorDetails = errorData.error?.message || JSON.stringify(errorData);
-      } catch (e) {
-        // If the error response is not JSON, use the raw text
-        errorDetails = await response.text();
-      }
-      throw new Error(errorDetails);
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || `Perplexity API responded with status ${response.status}`);
     }
 
-    try {
-        const data = await response.json();
-        // Pass both choices and search_results back to the client
-        return {
-        choices: data.choices,
-        search_results: data.search_results,
-        };
-    } catch (error) {
-        throw new Error("Failed to parse successful response from Perplexity API as JSON.");
-    }
+    const data = await response.json();
+    // Pass both choices and search_results back to the client
+    return {
+      choices: data.choices,
+      search_results: data.search_results,
+    };
   }
 );
 

@@ -89,7 +89,6 @@ Create a `.env` file in the root of the project and add your API keys and servic
 
 ```.env
 PERPLEXITY_API_KEY="your_perplexity_api_key_here"
-GUARDRAILS_URL="https://guardrails-675059836631.us-central1.run.app/process"
 ```
 
 You can get a Perplexity API key from the [Perplexity AI Developer Portal](https://docs.perplexity.ai/).
