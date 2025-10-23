@@ -295,7 +295,7 @@ export default function Home() {
           </Collapsible>
 
           <main className="flex-1 overflow-y-auto" ref={viewportRef}>
-            <div className={cn('p-4 space-y-4', shouldFloatPrompt ? 'pb-4' : 'pb-32')}>
+            <div className={cn('p-4 space-y-4', shouldFloatPrompt ? 'pb-32' : 'pb-4')}>
                 {isLoadingMessages && !messages && (
                     <div className="flex justify-start">
                         <LoadingMessage />
