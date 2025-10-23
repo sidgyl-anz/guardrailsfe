@@ -1,10 +1,15 @@
+
 import {NextRequest, NextResponse} from 'next/server';
 
-const GUARDRAILS_URL = "https://guardrails-675059836631.us-central1.run.app/process";
+const GUARDRAILS_URL = process.env.GUARDRAILS_URL || "https://guardrails-675059836631.us-central1.run.app/process";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    if (!GUARDRAILS_URL) {
+      return NextResponse.json({error: 'Guardrails service URL is not configured.'}, {status: 500});
+    }
 
     const guardrailResponse = await fetch(GUARDRAILS_URL, {
       method: 'POST',

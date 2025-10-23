@@ -1,3 +1,4 @@
+
 # Safe Health Chat
 
 Safe Health Chat is a responsive, secure, health-focused chat application built with Next.js and Firebase. It leverages the Perplexity AI API to provide users with safe and informative answers to their health-related questions. The application features user authentication, persistent chat history, configurable information source filtering, integrated safety guardrails, and rich inline citations.
@@ -84,13 +85,14 @@ To run this project locally, you need to configure your environment variables an
 
 ### 1. Environment Variables
 
-Create a `.env` file in the root of the project and add your Perplexity AI API key:
+Create a `.env` file in the root of the project and add your API keys and service URLs:
 
 ```.env
 PERPLEXITY_API_KEY="your_perplexity_api_key_here"
+GUARDRAILS_URL="https://guardrails-675059836631.us-central1.run.app/process"
 ```
 
-You can get an API key from the [Perplexity AI Developer Portal](https://docs.perplexity.ai/).
+You can get a Perplexity API key from the [Perplexity AI Developer Portal](https://docs.perplexity.ai/).
 
 ### 2. Firebase Setup
 
