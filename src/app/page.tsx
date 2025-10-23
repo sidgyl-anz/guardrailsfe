@@ -290,7 +290,7 @@ export default function Home() {
           </Collapsible>
 
           <main className="flex-1 overflow-y-auto" ref={viewportRef}>
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4 pb-32">
                 {isLoadingMessages && !messages && (
                     <div className="flex justify-start">
                         <LoadingMessage />
@@ -330,7 +330,7 @@ export default function Home() {
             </div>
           </main>
 
-          <footer className="p-4 bg-card border-t flex-shrink-0">
+          <footer className="p-4 bg-card border-t flex-shrink-0 sticky bottom-0 z-10">
             <div className="max-w-2xl mx-auto">
               <form onSubmit={handleSubmit} className="relative">
                   <Textarea
