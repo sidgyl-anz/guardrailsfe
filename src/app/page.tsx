@@ -19,8 +19,9 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { ConversationHistory } from '@/components/conversation-history';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { DebugView } from '@/components/debug-view';
+import { cn } from '@/lib/utils';
 
 const GUARDRAIL_TIMEOUT = 120000; // 2 minutes
 
@@ -239,6 +240,10 @@ export default function Home() {
 
   const isChatDisabled = isLoading || !user;
 
+  const hasMessages = (messages?.length ?? 0) > 0;
+  const shouldFloatPrompt =
+    !!user && !hasMessages && !isLoading && !isLoadingMessages;
+
   return (
     <div className="flex h-screen bg-background text-foreground">
       <SidebarProvider defaultOpen={false}>
@@ -249,7 +254,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="w-full h-full flex flex-col overflow-hidden">
+        <SidebarInset className="w-full h-full flex flex-col overflow-hidden relative">
           <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
               <div className="flex items-center gap-2">
                   <SidebarTrigger>
@@ -290,7 +295,7 @@ export default function Home() {
           </Collapsible>
 
           <main className="flex-1 overflow-y-auto" ref={viewportRef}>
-            <div className="p-4 space-y-4 pb-4">
+            <div className={cn('p-4 space-y-4', shouldFloatPrompt ? 'pb-32' : 'pb-4')}>
                 {isLoadingMessages && !messages && (
                     <div className="flex justify-start">
                         <LoadingMessage />
@@ -330,8 +335,20 @@ export default function Home() {
             </div>
           </main>
 
-          <footer className="p-4 bg-card border-t flex-shrink-0">
-            <div className="max-w-2xl mx-auto">
+          <div
+            className={cn(
+              'p-4 transition-all duration-300',
+              shouldFloatPrompt
+                ? 'absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center'
+                : 'relative bg-card border-t flex-shrink-0'
+            )}
+          >
+            <div
+              className={cn(
+                'max-w-2xl w-full mx-auto',
+                shouldFloatPrompt ? 'bg-card border shadow-xl rounded-2xl p-4' : ''
+              )}
+            >
               <form onSubmit={handleSubmit} className="relative">
                   <Textarea
                   value={input}
@@ -355,7 +372,7 @@ export default function Home() {
                   </div>
               </form>
             </div>
-          </footer>
+          </div>
         </SidebarInset>
       </SidebarProvider>
       <GuardrailResultDialog
