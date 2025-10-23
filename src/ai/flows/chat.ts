@@ -63,7 +63,12 @@ const chatFlow = ai.defineFlow(
     }
 
     const data = await response.json();
-    return data;
+    
+    // Pass both choices and search_results back to the client
+    return {
+      choices: data.choices,
+      search_results: data.search_results,
+    };
   }
 );
 

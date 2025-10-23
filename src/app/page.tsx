@@ -6,7 +6,6 @@ import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/fi
 import { Send, HeartPulse, Code, LogIn, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettings } from '@/hooks/use-settings';
 import { useToast } from '@/hooks/use-toast';
 import { type ChatMessageType, type Conversation } from '@/lib/types';
@@ -37,7 +36,6 @@ export default function Home() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
   // Fetch messages for the active conversation
@@ -234,8 +232,8 @@ export default function Home() {
                 </div>
             </header>
 
-            <main className="flex-1 overflow-y-auto">
-            <div className="p-4 space-y-4" ref={scrollAreaRef}>
+            <main className="flex-1 overflow-y-auto" ref={viewportRef}>
+            <div className="p-4 space-y-4">
                 {isLoadingMessages && !messages && (
                     <div className="flex justify-center p-8"><LoadingMessage /></div>
                 )}
