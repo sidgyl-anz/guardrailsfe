@@ -168,7 +168,8 @@ export default function Home() {
       setLastApiTransaction({ request: requestBody, response: data });
 
       let aiResponseContent = data.choices[0].message.content;
-      let references = data.search_results?.map((r: any) => ({ uri: r.url, title: r.title || '' })) || [];
+      // Correctly map search_results to references
+      let references = data.search_results?.map((r: any) => ({ uri: r.url, title: r.title || r.url })) || [];
 
       // 3. Handle AI response and guardrail
       const outputGuardrailResult = await callGuardrails({ llm_response: aiResponseContent });
