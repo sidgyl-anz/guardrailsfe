@@ -115,11 +115,11 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     const hasGuardrailInfo = !!message.guardrailResult;
 
     return (
-        <div className={cn('group flex items-start gap-4 animate-in fade-in', !isUser ? 'justify-end' : '')}>
-            {isUser && (
-                <Avatar className="h-10 w-10">
-                    <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
-                        <User />
+        <div className={cn('group flex items-start gap-4 animate-in fade-in', isUser ? 'justify-end' : '')}>
+            {!isUser && (
+                 <Avatar className="h-10 w-10 border border-primary/20">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
+                        <HeartPulse />
                     </AvatarFallback>
                 </Avatar>
             )}
@@ -135,7 +135,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                     {message.isBlocked && (
                         <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
                             <Ban className="h-4 w-4" />
-                            <span>I cannot answer this so pls ask a question with more details</span>
+                            <span>I cannot provide a response to this. Please rephrase your question.</span>
                         </div>
                     )}
                     <div className={cn(
@@ -155,7 +155,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         size="icon"
                         className={cn(
                             "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-100",
-                            !isUser ? "-left-10" : "-right-10",
+                            isUser ? "-left-10" : "-right-10",
                         )}
                         onClick={onGuardrailClick}
                     >
@@ -165,10 +165,10 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                 )}
             </div>
 
-            {!isUser && (
-                <Avatar className="h-10 w-10 border border-primary/20">
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
-                        <HeartPulse />
+            {isUser && (
+                <Avatar className="h-10 w-10">
+                    <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
+                        <User />
                     </AvatarFallback>
                 </Avatar>
             )}
@@ -178,18 +178,14 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
 
 export function LoadingMessage() {
     return (
-        <div className='flex items-start gap-4 animate-in fade-in'>
+        <div className='group flex items-center gap-4 animate-in fade-in'>
             <Avatar className="h-10 w-10 border border-primary/20">
                 <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
                     <HeartPulse />
                 </AvatarFallback>
             </Avatar>
-            <div className="max-w-[75%] w-full rounded-lg p-4 shadow-md bg-card space-y-3">
-                <div className="flex items-center space-x-2">
-                    <Skeleton className="h-3 w-3 rounded-full bg-muted-foreground/50 animate-pulse" />
-                    <Skeleton className="h-3 w-3 rounded-full bg-muted-foreground/50 animate-pulse [animation-delay:0.2s]" />
-                    <Skeleton className="h-3 w-3 rounded-full bg-muted-foreground/50 animate-pulse [animation-delay:0.4s]" />
-                </div>
+            <div className="max-w-prose rounded-lg p-4 shadow-md bg-card">
+                 <div className="h-6 w-1 animate-pulse bg-primary rounded-full" />
             </div>
         </div>
     );
