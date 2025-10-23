@@ -85,6 +85,15 @@ export default function Home() {
       });
       clearTimeout(timeoutId);
       if (!response.ok) {
+        // Handle server-side timeouts (like 504) gracefully
+        if (response.status === 504) {
+             toast({
+                variant: 'destructive',
+                title: 'Guardrail Service Timeout',
+                description: 'The safety check took too long. The service may be starting up. Please try again in a moment.',
+            });
+            return null; // indicate failure
+        }
         throw new Error(`Guardrails API responded with status ${response.status}`);
       }
       return await response.json();
