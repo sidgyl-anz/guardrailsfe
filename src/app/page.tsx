@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, FormEvent } from 'react';
 import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { Send, HeartPulse, Code, LogIn, Menu, ExternalLink } from 'lucide-react';
+import { Send, HeartPulse, Code, LogIn, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
@@ -19,19 +19,25 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { ConversationHistory } from '@/components/conversation-history';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { useApiTransaction } from '@/context/api-transaction-context';
-import Link from 'next/link';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DebugView } from '@/components/debug-view';
 
 const GUARDRAILS_URL = "/api/guardrails";
 const GUARDRAIL_TIMEOUT = 120000; // 2 minutes
+
+type ApiTransaction = {
+  request: any;
+  response: any;
+};
 
 export default function Home() {
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedGuardrailResult, setSelectedGuardrailResult] = useState<any>(null);
+  const [lastApiTransaction, setLastApiTransaction] = useState<ApiTransaction | null>(null);
+  const [isDebugViewVisible, setIsDebugViewVisible] = useState(false);
   
-  const { setLastApiTransaction } = useApiTransaction();
   const { searchDomains, systemPrompt, useGuardrails, isSettingsReady } = useSettings();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -189,13 +195,11 @@ export default function Home() {
       setLastApiTransaction({ request: requestBody, response: data });
 
       let aiResponseContent = data.choices[0].message.content;
-      // Correctly map search_results to references
       let references = data.search_results?.map((r: any) => ({ uri: r.url, title: r.title || r.url })) || [];
 
       // 3. Handle AI response and guardrail
       const outputGuardrailResult = await callGuardrails({ llm_response: aiResponseContent });
 
-      // If timeout or other error, we can still show the AI response but without guardrail info
       const isAiResponseBlocked = !outputGuardrailResult || !outputGuardrailResult.is_safe;
       
       const assistantMessage: Omit<ChatMessageType, 'id'> = {
@@ -233,95 +237,106 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <div className="flex flex-1 flex-col h-screen overflow-hidden">
-            <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                    <SidebarTrigger>
-                        <Menu />
-                    </SidebarTrigger>
-                    <h1 className="text-xl font-headline font-bold text-primary flex items-center gap-2">
-                    <HeartPulse />
-                    Safe Health Chat
-                    </h1>
-                </div>
-                <div className="flex items-center gap-2">
-                    <SettingsDialog />
-                    <Button variant="ghost" size="icon" asChild>
-                        <Link href="/debug" target="_blank">
-                            <Code className="h-5 w-5" />
-                            <span className="sr-only">Debug View</span>
-                        </Link>
-                    </Button>
-                    {isUserLoading ? (
-                    <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
-                    ) : user ? (
-                    <UserMenu />
-                    ) : (
-                    <AuthDialog />
-                    )}
-                </div>
-            </header>
+        <SidebarInset className="flex flex-col h-screen overflow-hidden">
+          <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                  <SidebarTrigger>
+                      <Menu />
+                  </SidebarTrigger>
+                  <h1 className="text-xl font-headline font-bold text-primary flex items-center gap-2">
+                  <HeartPulse />
+                  Safe Health Chat
+                  </h1>
+              </div>
+              <div className="flex items-center gap-2">
+                  <SettingsDialog />
+                  <Button variant="ghost" size="icon" onClick={() => setIsDebugViewVisible(!isDebugViewVisible)}>
+                      <Code className="h-5 w-5" />
+                      <span className="sr-only">Toggle Debug View</span>
+                  </Button>
+                  {isUserLoading ? (
+                  <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
+                  ) : user ? (
+                  <UserMenu />
+                  ) : (
+                  <AuthDialog />
+                  )}
+              </div>
+          </header>
 
-            <main className="flex-1 overflow-y-auto pb-32" ref={viewportRef}>
-            <div className="p-4 space-y-4">
-                {isLoadingMessages && !messages && (
-                    <div className="flex justify-center p-8"><LoadingMessage /></div>
-                )}
-                {!user && !isUserLoading ? (
-                    <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                        <LogIn className="h-16 w-16 text-primary mb-4" />
-                        <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
-                        <p className="max-w-md text-muted-foreground mb-4">
-                        To begin your secure and personalized health chat, please log in or create an account.
-                        </p>
-                        <AuthDialog />
-                    </div>
-                ) : messages?.length === 0 && !isLoading ? (
-                    <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                    <HeartPulse className="h-16 w-16 text-primary mb-4" />
-                    <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
-                    <p className="max-w-md text-muted-foreground">
-                        Your conversations are saved here. Start a new one below or select a previous chat from the sidebar.
-                    </p>
-                    </div>
-                ) : (
-                    messages?.map((msg) => (
-                    <ChatMessage 
-                        key={msg.id} 
-                        message={msg} 
-                        onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
-                    />
-                    ))
-                )}
-                {isLoading && <LoadingMessage />}
-            </div>
-            </main>
-
-            <footer className="flex-shrink-0 p-4 border-t bg-card z-10">
-            <form onSubmit={handleSubmit} className="relative">
-                <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
-                className="pr-20 min-h-[52px] resize-none"
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e);
-                    }
-                }}
-                disabled={isChatDisabled}
-                rows={1}
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
-                    <Send className="h-5 w-5" />
-                    <span className="sr-only">Send</span>
-                </Button>
+          <Collapsible open={isDebugViewVisible}>
+            <CollapsibleContent>
+              {lastApiTransaction && (
+                <div className="p-4 bg-muted/50 border-b">
+                  <DebugView 
+                    request={lastApiTransaction.request}
+                    response={lastApiTransaction.response}
+                  />
                 </div>
-            </form>
-            </footer>
-        </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <main className="flex-1 overflow-y-auto" ref={viewportRef}>
+          <div className="p-4 space-y-4 pb-32">
+              {isLoadingMessages && !messages && (
+                  <div className="flex justify-center p-8"><LoadingMessage /></div>
+              )}
+              {!user && !isUserLoading ? (
+                  <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                      <LogIn className="h-16 w-16 text-primary mb-4" />
+                      <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
+                      <p className="max-w-md text-muted-foreground mb-4">
+                      To begin your secure and personalized health chat, please log in or create an account.
+                      </p>
+                      <AuthDialog />
+                  </div>
+              ) : messages?.length === 0 && !isLoading ? (
+                  <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                  <HeartPulse className="h-16 w-16 text-primary mb-4" />
+                  <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
+                  <p className="max-w-md text-muted-foreground">
+                      Your conversations are saved here. Start a new one below or select a previous chat from the sidebar.
+                  </p>
+                  </div>
+              ) : (
+                  messages?.map((msg) => (
+                  <ChatMessage 
+                      key={msg.id} 
+                      message={msg} 
+                      onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
+                  />
+                  ))
+              )}
+              {isLoading && <LoadingMessage />}
+          </div>
+          </main>
+
+          <footer className="flex-shrink-0 p-4 border-t bg-card z-10">
+          <form onSubmit={handleSubmit} className="relative">
+              <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
+              className="pr-20 min-h-[52px] resize-none"
+              onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                  }
+              }}
+              disabled={isChatDisabled}
+              rows={1}
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
+                  <Send className="h-5 w-5" />
+                  <span className="sr-only">Send</span>
+              </Button>
+              </div>
+          </form>
+          </footer>
+        </SidebarInset>
       </SidebarProvider>
       <GuardrailResultDialog
         result={selectedGuardrailResult}
@@ -333,5 +348,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

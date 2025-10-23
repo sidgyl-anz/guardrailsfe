@@ -3,7 +3,6 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
-import { ApiTransactionProvider } from '@/context/api-transaction-context';
 
 export const metadata: Metadata = {
   title: 'Safe Health Chat',
@@ -24,11 +23,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <ApiTransactionProvider>
-            <FirebaseClientProvider>
-            {children}
-            </FirebaseClientProvider>
-        </ApiTransactionProvider>
+        <FirebaseClientProvider>
+          {children}
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>
