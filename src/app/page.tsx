@@ -31,7 +31,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [lastApiTransaction, setLastApiTransaction] = useState<{ request: any; response: any; } | null>(null);
   const [selectedGuardrailResult, setSelectedGuardrailResult] = useState<any>(null);
-  const [isDebugOpen, setIsDebugOpen] = useState(false);
 
   const { searchDomains, systemPrompt, useGuardrails, isSettingsReady } = useSettings();
   const { user, isUserLoading } = useUser();
@@ -109,7 +108,7 @@ export default function Home() {
     if (!input.trim() || isLoading || !isSettingsReady || !user || !firestore) return;
 
     setIsLoading(true);
-    setIsDebugOpen(false);
+    setLastApiTransaction(null);
 
     let currentConversationId = activeConversation?.id;
 
@@ -145,10 +144,7 @@ export default function Home() {
       isBlocked: isInputBlocked,
     };
     addDocumentNonBlocking(messagesRef, userMessage);
-    if(isInputBlocked) {
-        setLastApiTransaction({ request: {user_prompt: input}, response: inputGuardrailResult });
-        setIsDebugOpen(true);
-    }
+    setLastApiTransaction(isInputBlocked ? { request: {user_prompt: input}, response: inputGuardrailResult } : null);
     setInput('');
     
     if (isInputBlocked) {
@@ -170,9 +166,9 @@ export default function Home() {
     try {
       const data = await safeHealthChat(requestBody);
       setLastApiTransaction({ request: requestBody, response: data });
-      setIsDebugOpen(true);
 
       let aiResponseContent = data.choices[0].message.content;
+      // Correctly map search_results to references
       let references = data.search_results?.map((r: any) => ({ uri: r.url, title: r.title || r.url })) || [];
 
       // 3. Handle AI response and guardrail
@@ -197,7 +193,6 @@ export default function Home() {
         description: error.message || 'Failed to get a response from the AI.',
       });
       setLastApiTransaction({ request: requestBody, response: { error: error.message } });
-      setIsDebugOpen(true);
     } finally {
       setIsLoading(false);
     }
@@ -215,7 +210,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="flex flex-col h-screen overflow-hidden">
+        <SidebarInset className="flex flex-col">
             <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <SidebarTrigger>
@@ -238,44 +233,44 @@ export default function Home() {
                 </div>
             </header>
 
-            <main className="flex-1 overflow-y-auto" ref={viewportRef}>
-                <div className="p-4 space-y-4 pb-32">
-                    {isLoadingMessages && !messages && (
-                        <div className="flex justify-center p-8"><LoadingMessage /></div>
-                    )}
-                    {!user && !isUserLoading ? (
-                        <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                            <LogIn className="h-16 w-16 text-primary mb-4" />
-                            <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
-                            <p className="max-w-md text-muted-foreground mb-4">
-                            To begin your secure and personalized health chat, please log in or create an account.
-                            </p>
-                            <AuthDialog />
-                        </div>
-                    ) : messages?.length === 0 && !isLoading ? (
-                        <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                        <HeartPulse className="h-16 w-16 text-primary mb-4" />
-                        <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
-                        <p className="max-w-md text-muted-foreground">
-                            Your conversations are saved here. Start a new one below or select a previous chat from the sidebar.
+            <main className="flex-1 overflow-y-auto pb-32" ref={viewportRef}>
+            <div className="p-4 space-y-4">
+                {isLoadingMessages && !messages && (
+                    <div className="flex justify-center p-8"><LoadingMessage /></div>
+                )}
+                {!user && !isUserLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                        <LogIn className="h-16 w-16 text-primary mb-4" />
+                        <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
+                        <p className="max-w-md text-muted-foreground mb-4">
+                        To begin your secure and personalized health chat, please log in or create an account.
                         </p>
-                        </div>
-                    ) : (
-                        messages?.map((msg) => (
-                        <ChatMessage 
-                            key={msg.id} 
-                            message={msg} 
-                            onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
-                        />
-                        ))
-                    )}
-                    {isLoading && <LoadingMessage />}
-                </div>
+                        <AuthDialog />
+                    </div>
+                ) : messages?.length === 0 && !isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                    <HeartPulse className="h-16 w-16 text-primary mb-4" />
+                    <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
+                    <p className="max-w-md text-muted-foreground">
+                        Your conversations are saved here. Start a new one below or select a previous chat from the sidebar.
+                    </p>
+                    </div>
+                ) : (
+                    messages?.map((msg) => (
+                    <ChatMessage 
+                        key={msg.id} 
+                        message={msg} 
+                        onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
+                    />
+                    ))
+                )}
+                {isLoading && <LoadingMessage />}
+            </div>
             </main>
 
-            <footer className="w-full flex-shrink-0 bg-card z-10 p-4 border-t">
+            <footer className="fixed bottom-0 left-0 md:left-[16rem] group-data-[collapsible=icon]:md:left-[3rem]  right-0 bg-card z-10 p-4 border-t">
             {lastApiTransaction && (
-                <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen} className="mb-4">
+                <Collapsible className="mb-4">
                 <CollapsibleTrigger asChild>
                     <Button variant="outline" size="sm" className="w-full justify-start">
                     <Code className="h-4 w-4 mr-2" />
@@ -325,3 +320,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
