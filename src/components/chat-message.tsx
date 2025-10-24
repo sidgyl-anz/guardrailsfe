@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { type ChatMessage as ChatMessageType } from '@/lib/types';
 import { Button } from './ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -43,35 +43,33 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                                         const reference = references?.[number - 1]; // citations are 1-based
                                         return {
                                             number,
-                                            uri: reference?.url || '',
+                                            url: reference?.url || '',
                                             title: reference?.title || `Source [${number}]`,
                                         };
                                     })
-                                    .filter(ref => ref.uri);
+                                    .filter(ref => ref.url);
 
                                 if (citationLinks.length > 0) {
                                     parts.push(
-                                        <TooltipProvider delayDuration={100} key={`${match.index}-${index}`}>
-                                            <span className="inline-flex">
-                                                {citationLinks.map((link) => (
-                                                    <Tooltip key={link.uri || link.number}>
-                                                        <TooltipTrigger asChild>
-                                                            <a
-                                                                href={link.uri}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-primary font-semibold cursor-pointer"
-                                                            >
-                                                                [{link.number}]
-                                                            </a>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top" className="max-w-xs break-words text-sm">
-                                                            {link.title}
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                ))}
-                                            </span>
-                                        </TooltipProvider>
+                                        <span className="inline-flex" key={`${match.index}-${index}`}>
+                                            {citationLinks.map((link) => (
+                                                <Popover key={link.url || link.number}>
+                                                    <PopoverTrigger asChild>
+                                                        <a
+                                                            href={link.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-500 font-semibold cursor-pointer"
+                                                        >
+                                                            [{link.number}]
+                                                        </a>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent side="top" className="max-w-xs break-words text-sm p-2 bg-background border rounded-lg shadow-lg">
+                                                        {link.title}
+                                                    </PopoverContent>
+                                                </Popover>
+                                            ))}
+                                        </span>
                                     );
                                 } else {
                                      parts.push(match[0]); // If no valid link found, render as text
@@ -174,4 +172,9 @@ export function LoadingMessage() {
             </div>
         </div>
     );
+}
+
+interface ChatMessageProps {
+  message: ChatMessageType;
+  onGuardrailClick: () => void;
 }
