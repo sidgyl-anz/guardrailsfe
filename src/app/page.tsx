@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useRef, useEffect, FormEvent } from 'react';
-import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { Send, HeartPulse, Code, LogIn, Menu, Gem } from 'lucide-react';
+import { collection, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { Send, HeartPulse, Code, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
@@ -20,12 +20,12 @@ import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { DebugView } from '@/components/debug-view';
 import {
-  SidebarProvider,
-  Sidebar,
-  SidebarInset,
-  SidebarTrigger,
-} from '@/components/ui/sidebar';
-import { ConversationHistory } from '@/components/conversation-history';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 type ApiTransaction = {
@@ -46,6 +46,37 @@ export default function Home() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const viewportRef = useRef<HTMLDivElement>(null);
+
+  const conversationsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+      collection(firestore, 'users', user.uid, 'conversations'),
+      orderBy('createdAt', 'desc')
+    );
+  }, [user, firestore]);
+
+  const { data: conversations, isLoading: isLoadingConversations } = useCollection<Conversation>(conversationsQuery);
+
+  useEffect(() => {
+    if (!user) {
+      setActiveConversation(null);
+      return;
+    }
+
+    if (!activeConversation && conversations && conversations.length > 0) {
+      setActiveConversation(conversations[0]);
+      return;
+    }
+
+    if (
+      activeConversation &&
+      conversations &&
+      conversations.length > 0 &&
+      !conversations.some((conversation) => conversation.id === activeConversation.id)
+    ) {
+      setActiveConversation(conversations[0]);
+    }
+  }, [user, conversations, activeConversation]);
 
   // Fetch messages for the active conversation
   const messagesQuery = useMemoFirebase(() => {
@@ -202,12 +233,22 @@ export default function Home() {
       addDocumentNonBlocking(messagesRef, assistantMessage);
 
     } catch (error: any) {
+      const rawErrorMessage = error?.message || 'Failed to get a response from the AI.';
+      const normalizedMessage = rawErrorMessage.toLowerCase();
+      const isTimeoutError =
+        normalizedMessage.includes('deadline exceeded') ||
+        normalizedMessage.includes('timed out') ||
+        (normalizedMessage.includes('dkr') && normalizedMessage.includes('timeout'));
+
       toast({
         variant: 'destructive',
-        title: 'API Error',
-        description: error.message || 'Failed to get a response from the AI.',
+        title: isTimeoutError ? 'Request Timed Out' : 'API Error',
+        description: isTimeoutError
+          ? 'The AI service took too long to respond. Please try again in a few moments.'
+          : rawErrorMessage,
       });
-      setLastApiTransaction({ request: requestBody, response: { error: error.message } });
+
+      setLastApiTransaction({ request: requestBody, response: { error: rawErrorMessage } });
     } finally {
       setIsLoading(false);
     }
@@ -215,130 +256,147 @@ export default function Home() {
 
   const isChatDisabled = isLoading || !user;
 
+  const conversationPlaceholder = isLoadingConversations
+    ? 'Loading conversations...'
+    : conversations && conversations.length > 0
+      ? 'Select a conversation'
+      : 'No conversations yet';
+
   return (
-    <SidebarProvider>
-      <Sidebar>
-        <ConversationHistory
-          activeConversation={activeConversation}
-          onConversationSelect={setActiveConversation}
-          onNewConversation={createNewConversation}
-        />
-      </Sidebar>
-      <SidebarInset>
-        <div className="flex h-screen flex-col bg-background text-foreground">
-            <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                    <SidebarTrigger className="md:hidden">
-                        <Menu />
-                    </SidebarTrigger>
-                    <h1 className="text-xl font-headline font-bold flex items-center gap-2">
-                    <HeartPulse className="text-blue-500" />
-                    Safe Health Chat
-                    </h1>
-                </div>
-                <div className="flex items-center gap-2">
-                    <SettingsDialog />
-                    <Button variant="ghost" size="icon" onClick={() => setIsDebugViewVisible(!isDebugViewVisible)}>
-                        <Code className="h-5 w-5" />
-                        <span className="sr-only">Toggle Debug View</span>
-                    </Button>
-                    {isUserLoading ? (
-                    <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
-                    ) : user ? (
-                    <UserMenu />
-                    ) : (
-                    <AuthDialog />
-                    )}
-                </div>
-            </header>
-            
-            <Collapsible open={isDebugViewVisible} onOpenChange={setIsDebugViewVisible}>
-            <CollapsibleContent>
-                {lastApiTransaction && (
-                <div className="p-4 bg-muted/50 border-b">
-                    <DebugView 
-                    request={lastApiTransaction.request}
-                    response={lastApiTransaction.response}
-                    />
-                </div>
-                )}
-            </CollapsibleContent>
-            </Collapsible>
-
-            <main className="flex-1 overflow-y-auto" ref={viewportRef}>
-                <div className="p-4 space-y-4 pb-32">
-                    {isLoadingMessages && !messages && (
-                        <div className="flex justify-center items-center h-full">
-                            <LoadingMessage />
-                        </div>
-                    )}
-                    {!user && !isUserLoading ? (
-                        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                            <LogIn className="h-16 w-16 text-primary mb-4" />
-                            <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
-                            <p className="max-w-md text-muted-foreground mb-4">
-                            To begin your secure and personalized health chat, please log in or create an account.
-                            </p>
-                            <AuthDialog />
-                        </div>
-                    ) : messages?.length === 0 && !isLoading ? (
-                        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                        <HeartPulse className="h-16 w-16 text-blue-500 mb-4" />
-                        <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
-                        <p className="max-w-md text-muted-foreground">
-                            Your conversations are saved here. Start a new one below.
-                        </p>
-                        </div>
-                    ) : (
-                        messages?.map((msg) => (
-                        <ChatMessage 
-                            key={msg.id} 
-                            message={msg} 
-                            onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
-                        />
-                        ))
-                    )}
-                    {isLoading && (
-                        <div className={cn(messages?.length === 0 && "flex justify-center")}>
-                            <LoadingMessage />
-                        </div>
-                    )}
-                </div>
-            </main>
-
-            <footer className="p-4 border-t bg-card flex-shrink-0">
-                <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto">
-                    <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
-                    className="pr-20 min-h-[52px] resize-none shadow-lg border-input bg-white"
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit(e);
-                        }
-                    }}
-                    disabled={isChatDisabled}
-                    rows={1}
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
-                        <Send className="h-5 w-5" />
-                        <span className="sr-only">Send</span>
-                    </Button>
-                    </div>
-                </form>
-            </footer>
+    <div className="flex h-screen flex-col bg-background text-foreground">
+      <header className="flex flex-col gap-4 border-b bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <HeartPulse className="h-6 w-6 text-blue-500" />
+            <h1 className="text-xl font-headline font-bold">Safe Health Chat</h1>
+          </div>
+          {user && (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Select
+                value={activeConversation?.id ?? undefined}
+                onValueChange={(conversationId) => {
+                  const selectedConversation = conversations?.find((convo) => convo.id === conversationId);
+                  if (selectedConversation) {
+                    setActiveConversation(selectedConversation);
+                  }
+                }}
+                disabled={isLoadingConversations || !conversations || conversations.length === 0}
+              >
+                <SelectTrigger className="w-full sm:w-[240px]">
+                  <SelectValue placeholder={conversationPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {conversations?.map((convo) => (
+                    <SelectItem key={convo.id} value={convo.id}>
+                      {convo.title || 'Untitled conversation'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={createNewConversation} disabled={isLoading} variant="secondary">
+                New Chat
+              </Button>
+            </div>
+          )}
         </div>
-      </SidebarInset>
+        <div className="flex items-center gap-2 self-end md:self-auto">
+          <SettingsDialog />
+          <Button variant="ghost" size="icon" onClick={() => setIsDebugViewVisible(!isDebugViewVisible)}>
+            <Code className="h-5 w-5" />
+            <span className="sr-only">Toggle Debug View</span>
+          </Button>
+          {isUserLoading ? (
+            <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
+          ) : user ? (
+            <UserMenu />
+          ) : (
+            <AuthDialog />
+          )}
+        </div>
+      </header>
+
+      <Collapsible open={isDebugViewVisible} onOpenChange={setIsDebugViewVisible}>
+        <CollapsibleContent>
+          {lastApiTransaction && (
+            <div className="border-b bg-muted/50 p-4">
+              <DebugView request={lastApiTransaction.request} response={lastApiTransaction.response} />
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      <main className="flex-1 overflow-y-auto" ref={viewportRef}>
+        <div className="space-y-4 p-4 pb-32">
+          {isLoadingMessages && !messages && (
+            <div className="flex h-full items-center justify-center">
+              <LoadingMessage />
+            </div>
+          )}
+          {!user && !isUserLoading ? (
+            <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+              <LogIn className="mb-4 h-16 w-16 text-primary" />
+              <h2 className="mb-2 text-2xl font-headline">Please Log In</h2>
+              <p className="mb-4 max-w-md text-muted-foreground">
+                To begin your secure and personalized health chat, please log in or create an account.
+              </p>
+              <AuthDialog />
+            </div>
+          ) : messages?.length === 0 && !isLoading ? (
+            <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+              <HeartPulse className="mb-4 h-16 w-16 text-blue-500" />
+              <h2 className="mb-2 text-2xl font-headline">Welcome to Safe Health Chat</h2>
+              <p className="max-w-md text-muted-foreground">
+                Your conversations are saved here. Start a new one below.
+              </p>
+            </div>
+          ) : (
+            messages?.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
+              />
+            ))
+          )}
+          {isLoading && (
+            <div className={cn(messages?.length === 0 && 'flex justify-center')}>
+              <LoadingMessage />
+            </div>
+          )}
+        </div>
+      </main>
+
+      <footer className="flex-shrink-0 border-t bg-card p-4">
+        <form onSubmit={handleSubmit} className="relative mx-auto max-w-2xl">
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={user ? 'Ask anything...' : 'Please log in to start a conversation.'}
+            className="min-h-[52px] resize-none border-input bg-white pr-20 shadow-lg"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+            disabled={isChatDisabled}
+            rows={1}
+          />
+          <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1">
+            <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
+              <Send className="h-5 w-5" />
+              <span className="sr-only">Send</span>
+            </Button>
+          </div>
+        </form>
+      </footer>
       <GuardrailResultDialog
         result={selectedGuardrailResult}
         isOpen={!!selectedGuardrailResult}
         onOpenChange={(open) => {
-            if (!open) setSelectedGuardrailResult(null)
+          if (!open) setSelectedGuardrailResult(null);
         }}
       />
-    </SidebarProvider>
+    </div>
   );
 }
