@@ -37,6 +37,8 @@ export function UserMenu() {
   };
 
   if (!user) return null;
+  
+  const userInitial = user.email ? user.email.charAt(0).toUpperCase() : <UserIcon className="h-5 w-5" />;
 
   return (
     <DropdownMenu>
@@ -44,7 +46,7 @@ export function UserMenu() {
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
             <AvatarFallback>
-                <UserIcon className="h-5 w-5" />
+                {userInitial}
             </AvatarFallback>
           </Avatar>
         </Button>

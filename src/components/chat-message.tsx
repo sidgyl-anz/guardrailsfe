@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { User, HeartPulse, Shield, ShieldAlert, Ban, Heart } from 'lucide-react';
+import { User, Gem, Shield, ShieldAlert, Ban, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { type ChatMessage as ChatMessageType } from '@/lib/types';
@@ -18,11 +18,10 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
             className="prose dark:prose-invert prose-p:leading-relaxed prose-sm"
             components={{
                 a: ({ node, ...props }) => {
-                    return <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" />;
+                    return <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary-foreground hover:underline" />;
                 },
-                p: ({ node, ...props }) => {
-                    const childrenArray = React.Children.toArray(props.children);
-                    const processedChildren = childrenArray.flatMap((child, index) => {
+                p: ({ children, ...props }) => {
+                    const processedChildren = React.Children.toArray(children).flatMap((child, index) => {
                         if (typeof child !== 'string') {
                             return child;
                         }
@@ -39,7 +38,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                             }
 
                             const citationNumber = parseInt(match[1], 10);
-                            const reference = references?.[citationNumber - 1];
+                            const reference = references?.find(ref => ref.title?.includes(`[${citationNumber}]`) || ref.url?.includes(`[${citationNumber}]`)) || references?.[citationNumber - 1];
 
                             if (reference?.url) {
                                 parts.push(
@@ -49,7 +48,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                                                 href={reference.url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-blue-500 font-semibold cursor-pointer"
+                                                className="text-blue-300 font-semibold cursor-pointer hover:underline"
                                             >
                                                 [{citationNumber}]
                                             </a>
@@ -90,17 +89,17 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
 
     return (
         <div className={cn('group flex items-start gap-4', isUser ? '' : '')}>
-            <Avatar className={cn("h-10 w-10", isUser ? "" : "order-2")}>
-                <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
-                    {isUser ? <User /> : <HeartPulse />}
+            <Avatar className={cn("h-10 w-10 border", isUser ? "bg-background" : "bg-primary text-primary-foreground")}>
+                <AvatarFallback className={cn("bg-transparent")}>
+                    {isUser ? <User /> : <Gem />}
                 </AvatarFallback>
             </Avatar>
 
-            <div className={cn("relative flex-1", isUser ? "order-1" : "")}>
+            <div className={cn("relative flex-1")}>
                 <div
                     className={cn(
-                        'max-w-prose rounded-lg p-4 shadow-md',
-                         isUser ? 'bg-card text-card-foreground' : 'bg-primary text-primary-foreground',
+                        'max-w-prose rounded-lg p-4 shadow-sm',
+                         isUser ? 'bg-white' : 'bg-primary text-primary-foreground',
                         message.isBlocked && 'bg-muted border'
                     )}
                 >
@@ -112,6 +111,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                     )}
                     <div className={cn(
                         "font-body text-base leading-relaxed",
+                         isUser ? "text-foreground" : "text-primary-foreground",
                         message.isBlocked ? "text-muted-foreground italic" : ""
                     )}>
                         <MemoizedReactMarkdown content={message.content} references={message.references || []} />
@@ -119,7 +119,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                 </div>
                  <div className={cn(
                     "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 flex items-center",
-                    isUser ? "-right-10" : "-left-10"
+                     isUser ? "-right-10" : "left-full ml-2"
                 )}>
                     {hasGuardrailInfo && (
                         <Button
@@ -155,12 +155,12 @@ const BlinkingDots = () => (
 export function LoadingMessage() {
     return (
         <div className="flex items-start gap-4">
-             <Avatar className="h-10 w-10">
-                <AvatarFallback>
-                    <HeartPulse />
+            <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
+                <AvatarFallback className="bg-transparent">
+                    <Gem />
                 </AvatarFallback>
             </Avatar>
-            <div className="max-w-prose rounded-lg p-4 shadow-md bg-primary text-primary-foreground">
+            <div className="max-w-prose rounded-lg p-4 shadow-sm bg-primary text-primary-foreground">
                 <BlinkingDots />
             </div>
         </div>

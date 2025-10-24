@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, FormEvent } from 'react';
 import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { Send, HeartPulse, Code, LogIn, Menu } from 'lucide-react';
+import { Send, Gem, Code, LogIn, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
@@ -179,7 +179,7 @@ export default function Home() {
       setLastApiTransaction({ request: requestBody, response: data });
 
       let aiResponseContent = data.choices[0].message.content;
-      let references = data.search_results?.map((r: any) => ({ uri: r.url, title: r.title || r.url })) || [];
+      let references = data.search_results?.map((r: any) => ({ url: r.url, title: r.title || r.url })) || [];
 
       const outputGuardrailResult = await callGuardrails({ llm_response: aiResponseContent });
 
@@ -225,14 +225,14 @@ export default function Home() {
         />
       </Sidebar>
       <SidebarInset>
-        <div className="flex h-screen max-h-screen flex-col bg-slate-100 text-foreground">
+        <div className="flex h-screen max-h-screen flex-col bg-background text-foreground">
             <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <SidebarTrigger className="md:hidden">
                         <Menu />
                     </SidebarTrigger>
-                    <h1 className="text-xl font-headline font-bold text-primary flex items-center gap-2">
-                    <HeartPulse />
+                    <h1 className="text-xl font-headline font-bold text-primary-foreground flex items-center gap-2">
+                    <Gem className="text-primary" />
                     Safe Health Chat
                     </h1>
                 </div>
@@ -283,7 +283,7 @@ export default function Home() {
                         </div>
                     ) : messages?.length === 0 && !isLoading ? (
                         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                        <HeartPulse className="h-16 w-16 text-primary mb-4" />
+                        <Gem className="h-16 w-16 text-primary mb-4" />
                         <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
                         <p className="max-w-md text-muted-foreground">
                             Your conversations are saved here. Start a new one below.
@@ -312,7 +312,7 @@ export default function Home() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
-                    className="pr-20 min-h-[52px] resize-none shadow-lg border-input"
+                    className="pr-20 min-h-[52px] resize-none shadow-lg border-input bg-white"
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
