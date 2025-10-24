@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, FormEvent } from 'react';
 import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { Send, HeartPulse, Code, LogIn, Menu } from 'lucide-react';
+import { Send, HeartPulse, Code, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
@@ -16,8 +16,6 @@ import { GuardrailResultDialog } from '@/components/guardrail-result-dialog';
 import { AuthDialog } from '@/components/auth-dialog';
 import { UserMenu } from '@/components/user-menu';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { ConversationHistory } from '@/components/conversation-history';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { DebugView } from '@/components/debug-view';
@@ -245,134 +243,120 @@ export default function Home() {
     !!user && !hasMessages && !isLoading && !isLoadingMessages;
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      <SidebarProvider defaultOpen={false}>
-        <Sidebar>
-          <ConversationHistory 
-            activeConversation={activeConversation}
-            onConversationSelect={setActiveConversation}
-            onNewConversation={createNewConversation}
-          />
-        </Sidebar>
-        <SidebarInset className="w-full flex flex-col h-screen overflow-hidden">
-          <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                  <SidebarTrigger>
-                      <Menu />
-                  </SidebarTrigger>
-                  <h1 className="text-xl font-headline font-bold text-primary flex items-center gap-2">
-                  <HeartPulse />
-                  Safe Health Chat
-                  </h1>
-              </div>
-              <div className="flex items-center gap-2">
-                  <SettingsDialog />
-                  <Button variant="ghost" size="icon" onClick={() => setIsDebugViewVisible(!isDebugViewVisible)}>
-                      <Code className="h-5 w-5" />
-                      <span className="sr-only">Toggle Debug View</span>
-                  </Button>
-                  {isUserLoading ? (
-                  <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
-                  ) : user ? (
-                  <UserMenu />
-                  ) : (
-                  <AuthDialog />
-                  )}
-              </div>
-          </header>
+    <div className="flex h-screen flex-col bg-background text-foreground">
+        <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
+            <div className="flex items-center gap-2">
+                <h1 className="text-xl font-headline font-bold text-primary flex items-center gap-2">
+                <HeartPulse />
+                Safe Health Chat
+                </h1>
+            </div>
+            <div className="flex items-center gap-2">
+                <SettingsDialog />
+                <Button variant="ghost" size="icon" onClick={() => setIsDebugViewVisible(!isDebugViewVisible)}>
+                    <Code className="h-5 w-5" />
+                    <span className="sr-only">Toggle Debug View</span>
+                </Button>
+                {isUserLoading ? (
+                <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
+                ) : user ? (
+                <UserMenu />
+                ) : (
+                <AuthDialog />
+                )}
+            </div>
+        </header>
 
-          <Collapsible open={isDebugViewVisible} onOpenChange={setIsDebugViewVisible}>
-            <CollapsibleContent>
-              {lastApiTransaction && (
-                <div className="p-4 bg-muted/50 border-b">
-                  <DebugView 
-                    request={lastApiTransaction.request}
-                    response={lastApiTransaction.response}
-                  />
+        <Collapsible open={isDebugViewVisible} onOpenChange={setIsDebugViewVisible}>
+        <CollapsibleContent>
+            {lastApiTransaction && (
+            <div className="p-4 bg-muted/50 border-b">
+                <DebugView 
+                request={lastApiTransaction.request}
+                response={lastApiTransaction.response}
+                />
+            </div>
+            )}
+        </CollapsibleContent>
+        </Collapsible>
+
+        <main className="flex-1 relative overflow-y-auto" ref={viewportRef}>
+            <div className={cn('p-4 space-y-4 pb-32')}>
+                {isLoadingMessages && !messages && (
+                    <div className="flex justify-start">
+                        <LoadingMessage />
+                    </div>
+                )}
+                {!user && !isUserLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                        <LogIn className="h-16 w-16 text-primary mb-4" />
+                        <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
+                        <p className="max-w-md text-muted-foreground mb-4">
+                        To begin your secure and personalized health chat, please log in or create an account.
+                        </p>
+                        <AuthDialog />
+                    </div>
+                ) : messages?.length === 0 && !isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                    <HeartPulse className="h-16 w-16 text-primary mb-4" />
+                    <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
+                    <p className="max-w-md text-muted-foreground">
+                        Your conversations are saved here. Start a new one below or select a previous chat from the sidebar.
+                    </p>
+                    </div>
+                ) : (
+                    messages?.map((msg) => (
+                    <ChatMessage 
+                        key={msg.id} 
+                        message={msg} 
+                        onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
+                    />
+                    ))
+                )}
+                {isLoading && (
+                    <div className="flex justify-start">
+                        <LoadingMessage />
+                    </div>
+                )}
+            </div>
+
+            <div
+                className={cn(
+                'absolute inset-x-0 bottom-0 bg-gradient-to-t from-background to-transparent',
+                shouldFloatPrompt ? 'p-4 flex justify-center items-end' : 'p-4'
+                )}
+            >
+                <div
+                className={cn(
+                    'max-w-2xl w-full mx-auto',
+                    shouldFloatPrompt ? 'bg-card border shadow-xl rounded-2xl p-4' : ''
+                )}
+                >
+                <form onSubmit={handleSubmit} className="relative">
+                    <Textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
+                    className="pr-20 min-h-[52px] resize-none shadow-lg border-input"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e);
+                        }
+                    }}
+                    disabled={isChatDisabled}
+                    rows={1}
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
+                        <Send className="h-5 w-5" />
+                        <span className="sr-only">Send</span>
+                    </Button>
+                    </div>
+                </form>
                 </div>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
-
-          <main className="flex-1 relative overflow-y-auto" ref={viewportRef}>
-              <div className={cn('p-4 space-y-4 pb-32')}>
-                  {isLoadingMessages && !messages && (
-                      <div className="flex justify-start">
-                          <LoadingMessage />
-                      </div>
-                  )}
-                  {!user && !isUserLoading ? (
-                      <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                          <LogIn className="h-16 w-16 text-primary mb-4" />
-                          <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
-                          <p className="max-w-md text-muted-foreground mb-4">
-                          To begin your secure and personalized health chat, please log in or create an account.
-                          </p>
-                          <AuthDialog />
-                      </div>
-                  ) : messages?.length === 0 && !isLoading ? (
-                      <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                      <HeartPulse className="h-16 w-16 text-primary mb-4" />
-                      <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
-                      <p className="max-w-md text-muted-foreground">
-                          Your conversations are saved here. Start a new one below or select a previous chat from the sidebar.
-                      </p>
-                      </div>
-                  ) : (
-                      messages?.map((msg) => (
-                      <ChatMessage 
-                          key={msg.id} 
-                          message={msg} 
-                          onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
-                      />
-                      ))
-                  )}
-                  {isLoading && (
-                      <div className="flex justify-start">
-                          <LoadingMessage />
-                      </div>
-                  )}
-              </div>
-
-              <div
-                  className={cn(
-                  'absolute inset-x-0 bottom-0 bg-gradient-to-t from-background to-transparent',
-                  shouldFloatPrompt ? 'p-4 flex justify-center items-end' : 'p-4'
-                  )}
-              >
-                  <div
-                  className={cn(
-                      'max-w-2xl w-full mx-auto',
-                      shouldFloatPrompt ? 'bg-card border shadow-xl rounded-2xl p-4' : ''
-                  )}
-                  >
-                  <form onSubmit={handleSubmit} className="relative">
-                      <Textarea
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
-                      className="pr-20 min-h-[52px] resize-none shadow-lg border-input"
-                      onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSubmit(e);
-                          }
-                      }}
-                      disabled={isChatDisabled}
-                      rows={1}
-                      />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
-                          <Send className="h-5 w-5" />
-                          <span className="sr-only">Send</span>
-                      </Button>
-                      </div>
-                  </form>
-                  </div>
-              </div>
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+            </div>
+        </main>
       <GuardrailResultDialog
         result={selectedGuardrailResult}
         isOpen={!!selectedGuardrailResult}
