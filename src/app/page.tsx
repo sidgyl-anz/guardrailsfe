@@ -254,7 +254,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="w-full h-full flex flex-col overflow-hidden relative">
+        <SidebarInset className="w-full h-full min-h-0 flex flex-col overflow-hidden relative">
           <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
               <div className="flex items-center gap-2">
                   <SidebarTrigger>
@@ -294,7 +294,7 @@ export default function Home() {
             </CollapsibleContent>
           </Collapsible>
 
-          <main className="flex-1 overflow-y-auto" ref={viewportRef}>
+          <main className="flex-1 min-h-0 overflow-y-auto" ref={viewportRef}>
             <div className={cn('p-4 space-y-4', shouldFloatPrompt ? 'pb-32' : 'pb-4')}>
                 {isLoadingMessages && !messages && (
                     <div className="flex justify-start">
