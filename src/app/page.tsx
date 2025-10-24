@@ -254,7 +254,7 @@ export default function Home() {
             onNewConversation={createNewConversation}
           />
         </Sidebar>
-        <SidebarInset className="w-full h-full flex flex-col overflow-hidden relative">
+        <SidebarInset className="w-full flex flex-col h-screen overflow-hidden">
           <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
               <div className="flex items-center gap-2">
                   <SidebarTrigger>
@@ -294,85 +294,83 @@ export default function Home() {
             </CollapsibleContent>
           </Collapsible>
 
-          <div className="flex-1 relative">
-            <main className="absolute inset-0 overflow-y-auto" ref={viewportRef}>
-                <div className={cn('p-4 space-y-4 pb-32')}>
-                    {isLoadingMessages && !messages && (
-                        <div className="flex justify-start">
-                            <LoadingMessage />
-                        </div>
-                    )}
-                    {!user && !isUserLoading ? (
-                        <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                            <LogIn className="h-16 w-16 text-primary mb-4" />
-                            <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
-                            <p className="max-w-md text-muted-foreground mb-4">
-                            To begin your secure and personalized health chat, please log in or create an account.
-                            </p>
-                            <AuthDialog />
-                        </div>
-                    ) : messages?.length === 0 && !isLoading ? (
-                        <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                        <HeartPulse className="h-16 w-16 text-primary mb-4" />
-                        <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
-                        <p className="max-w-md text-muted-foreground">
-                            Your conversations are saved here. Start a new one below or select a previous chat from the sidebar.
-                        </p>
-                        </div>
-                    ) : (
-                        messages?.map((msg) => (
-                        <ChatMessage 
-                            key={msg.id} 
-                            message={msg} 
-                            onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
-                        />
-                        ))
-                    )}
-                    {isLoading && (
-                        <div className="flex justify-start">
-                            <LoadingMessage />
-                        </div>
-                    )}
-                </div>
-            </main>
+          <main className="flex-1 relative overflow-y-auto" ref={viewportRef}>
+              <div className={cn('p-4 space-y-4 pb-32')}>
+                  {isLoadingMessages && !messages && (
+                      <div className="flex justify-start">
+                          <LoadingMessage />
+                      </div>
+                  )}
+                  {!user && !isUserLoading ? (
+                      <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                          <LogIn className="h-16 w-16 text-primary mb-4" />
+                          <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
+                          <p className="max-w-md text-muted-foreground mb-4">
+                          To begin your secure and personalized health chat, please log in or create an account.
+                          </p>
+                          <AuthDialog />
+                      </div>
+                  ) : messages?.length === 0 && !isLoading ? (
+                      <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                      <HeartPulse className="h-16 w-16 text-primary mb-4" />
+                      <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
+                      <p className="max-w-md text-muted-foreground">
+                          Your conversations are saved here. Start a new one below or select a previous chat from the sidebar.
+                      </p>
+                      </div>
+                  ) : (
+                      messages?.map((msg) => (
+                      <ChatMessage 
+                          key={msg.id} 
+                          message={msg} 
+                          onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
+                      />
+                      ))
+                  )}
+                  {isLoading && (
+                      <div className="flex justify-start">
+                          <LoadingMessage />
+                      </div>
+                  )}
+              </div>
 
-            <div
-                className={cn(
-                'absolute inset-x-0 bottom-0 bg-gradient-to-t from-background to-transparent',
-                 shouldFloatPrompt ? 'p-4 flex justify-center items-end' : 'p-4'
-                )}
-            >
-                <div
-                className={cn(
-                    'max-w-2xl w-full mx-auto',
-                    shouldFloatPrompt ? 'bg-card border shadow-xl rounded-2xl p-4' : ''
-                )}
-                >
-                <form onSubmit={handleSubmit} className="relative">
-                    <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
-                    className="pr-20 min-h-[52px] resize-none shadow-lg border-input"
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit(e);
-                        }
-                    }}
-                    disabled={isChatDisabled}
-                    rows={1}
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
-                        <Send className="h-5 w-5" />
-                        <span className="sr-only">Send</span>
-                    </Button>
-                    </div>
-                </form>
-                </div>
-            </div>
-          </div>
+              <div
+                  className={cn(
+                  'absolute inset-x-0 bottom-0 bg-gradient-to-t from-background to-transparent',
+                  shouldFloatPrompt ? 'p-4 flex justify-center items-end' : 'p-4'
+                  )}
+              >
+                  <div
+                  className={cn(
+                      'max-w-2xl w-full mx-auto',
+                      shouldFloatPrompt ? 'bg-card border shadow-xl rounded-2xl p-4' : ''
+                  )}
+                  >
+                  <form onSubmit={handleSubmit} className="relative">
+                      <Textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
+                      className="pr-20 min-h-[52px] resize-none shadow-lg border-input"
+                      onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSubmit(e);
+                          }
+                      }}
+                      disabled={isChatDisabled}
+                      rows={1}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
+                          <Send className="h-5 w-5" />
+                          <span className="sr-only">Send</span>
+                      </Button>
+                      </div>
+                  </form>
+                  </div>
+              </div>
+          </main>
         </SidebarInset>
       </SidebarProvider>
       <GuardrailResultDialog
@@ -385,5 +383,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
