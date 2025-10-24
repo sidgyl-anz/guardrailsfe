@@ -8,7 +8,7 @@ export interface ChatMessage {
   createdAt: FieldValue;
   guardrailResult?: any;
   isBlocked?: boolean;
-  references?: { title: string; uri: string }[];
+  references?: { title: string; url: string }[];
 }
 
 export interface Conversation {

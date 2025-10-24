@@ -11,11 +11,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-interface ChatMessageProps {
-  message: ChatMessageType;
-  onGuardrailClick: () => void;
-}
-
 const MemoizedReactMarkdown = React.memo(({ content, references }: { content: string, references: ChatMessageType['references'] }) => {
     return (
         <ReactMarkdown
@@ -48,7 +43,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                                         const reference = references?.[number - 1]; // citations are 1-based
                                         return {
                                             number,
-                                            uri: reference?.uri || '',
+                                            uri: reference?.url || '',
                                             title: reference?.title || `Source [${number}]`,
                                         };
                                     })
@@ -111,18 +106,18 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     const hasGuardrailInfo = !!message.guardrailResult;
 
     return (
-        <div className={cn('group flex items-start gap-4', isUser ? '' : 'flex-row-reverse')}>
-            <Avatar className="h-10 w-10">
+        <div className={cn('group flex items-start gap-4', isUser ? '' : '')}>
+            <Avatar className={cn("h-10 w-10", isUser ? "" : "order-2")}>
                 <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
-                    {isUser ? <HeartPulse /> : <User />}
+                    {isUser ? <User /> : <HeartPulse />}
                 </AvatarFallback>
             </Avatar>
 
-            <div className="relative">
+            <div className={cn("relative flex-1", isUser ? "order-1" : "")}>
                 <div
                     className={cn(
                         'max-w-prose rounded-lg p-4 shadow-md',
-                        isUser ? 'bg-card text-card-foreground' : 'bg-primary text-primary-foreground',
+                         isUser ? 'bg-card text-card-foreground' : 'bg-primary text-primary-foreground',
                         message.isBlocked && 'bg-muted border'
                     )}
                 >
@@ -158,11 +153,24 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     );
 }
 
+const BlinkingDots = () => (
+    <div className="flex items-center space-x-1">
+        <span className="h-2 w-2 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-current"></span>
+        <span className="h-2 w-2 animate-[pulse_1s_ease-in-out_0.2s_infinite] rounded-full bg-current"></span>
+        <span className="h-2 w-2 animate-[pulse_1s_ease-in-out_0.4s_infinite] rounded-full bg-current"></span>
+    </div>
+);
+
 export function LoadingMessage() {
     return (
-        <div className="flex items-center justify-start">
-            <div className="rounded-full bg-primary/10 px-4 py-2 shadow-inner">
-                <span className="text-primary text-lg font-semibold tracking-[0.4em] animate-pulse">...</span>
+        <div className="flex items-start gap-4">
+             <Avatar className="h-10 w-10">
+                <AvatarFallback>
+                    <HeartPulse />
+                </AvatarFallback>
+            </Avatar>
+            <div className="max-w-prose rounded-lg p-4 shadow-md bg-primary text-primary-foreground">
+                <BlinkingDots />
             </div>
         </div>
     );
