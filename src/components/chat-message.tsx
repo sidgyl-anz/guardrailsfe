@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { User, HeartPulse, Shield, ShieldAlert, Ban } from 'lucide-react';
+import { User, HeartPulse, Shield, ShieldAlert, Ban, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { type ChatMessage as ChatMessageType } from '@/lib/types';
@@ -22,70 +22,55 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                 },
                 p: ({ node, ...props }) => {
                     const childrenArray = React.Children.toArray(props.children);
-                    const processedChildren = childrenArray.map((child, index) => {
-                        if (typeof child === 'string') {
-                            const citationRegex = /(\[\d+\])+/g;
-                            const parts: (string | JSX.Element)[] = [];
-                            let lastIndex = 0;
-                            let match;
-
-                            while ((match = citationRegex.exec(child)) !== null) {
-                                // Add text before the citation group
-                                if (match.index > lastIndex) {
-                                    parts.push(child.substring(lastIndex, match.index));
-                                }
-
-                                // Handle the citation group (e.g., "[1][2]")
-                                const citationNumbers = match[0].match(/\d+/g)?.map(n => parseInt(n, 10)) || [];
-                                
-                                const citationLinks = citationNumbers
-                                    .map(number => {
-                                        const reference = references?.[number - 1]; // citations are 1-based
-                                        return {
-                                            number,
-                                            url: reference?.url || '',
-                                            title: reference?.title || `Source [${number}]`,
-                                        };
-                                    })
-                                    .filter(ref => ref.url);
-
-                                if (citationLinks.length > 0) {
-                                    parts.push(
-                                        <span className="inline-flex" key={`${match.index}-${index}`}>
-                                            {citationLinks.map((link) => (
-                                                <Popover key={link.url || link.number}>
-                                                    <PopoverTrigger asChild>
-                                                        <a
-                                                            href={link.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-blue-500 font-semibold cursor-pointer"
-                                                        >
-                                                            [{link.number}]
-                                                        </a>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent side="top" className="max-w-xs break-words text-sm p-2 bg-background border rounded-lg shadow-lg">
-                                                        {link.title}
-                                                    </PopoverContent>
-                                                </Popover>
-                                            ))}
-                                        </span>
-                                    );
-                                } else {
-                                     parts.push(match[0]); // If no valid link found, render as text
-                                }
-
-                                lastIndex = citationRegex.lastIndex;
-                            }
-
-                            // Add remaining text
-                            if (lastIndex < child.length) {
-                                parts.push(child.substring(lastIndex));
-                            }
-                            
-                            return <React.Fragment key={index}>{parts}</React.Fragment>;
+                    const processedChildren = childrenArray.flatMap((child, index) => {
+                        if (typeof child !== 'string') {
+                            return child;
                         }
-                        return child;
+
+                        const parts: (string | JSX.Element)[] = [];
+                        let lastIndex = 0;
+                        const citationRegex = /\[(\d+)\]/g;
+                        let match;
+
+                        while ((match = citationRegex.exec(child)) !== null) {
+                            const textBefore = child.substring(lastIndex, match.index);
+                            if (textBefore) {
+                                parts.push(textBefore);
+                            }
+
+                            const citationNumber = parseInt(match[1], 10);
+                            const reference = references?.[citationNumber - 1];
+
+                            if (reference?.url) {
+                                parts.push(
+                                    <Popover key={`${match.index}-${index}`}>
+                                        <PopoverTrigger asChild>
+                                            <a
+                                                href={reference.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-500 font-semibold cursor-pointer"
+                                            >
+                                                [{citationNumber}]
+                                            </a>
+                                        </PopoverTrigger>
+                                        <PopoverContent side="top" className="max-w-xs break-words text-sm p-2 bg-background border rounded-lg shadow-lg">
+                                            {reference.title || `Source [${citationNumber}]`}
+                                        </PopoverContent>
+                                    </Popover>
+                                );
+                            } else {
+                                parts.push(match[0]); // If no valid link found, render as text
+                            }
+                            lastIndex = citationRegex.lastIndex;
+                        }
+
+                        const remainingText = child.substring(lastIndex);
+                        if (remainingText) {
+                            parts.push(remainingText);
+                        }
+                        
+                        return parts.length > 0 ? parts : [child];
                     });
                     
                     return <p {...props}>{processedChildren}</p>;
@@ -132,20 +117,28 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         <MemoizedReactMarkdown content={message.content} references={message.references || []} />
                     </div>
                 </div>
-                {hasGuardrailInfo && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                            "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100",
-                            isUser ? "-right-10" : "-left-10"
-                        )}
-                        onClick={onGuardrailClick}
-                    >
-                        {message.isBlocked ? <ShieldAlert className="h-5 w-5 text-muted-foreground" /> : <Shield className="h-5 w-5 text-muted-foreground/70" />}
-                        <span className="sr-only">View Guardrail Details</span>
-                    </Button>
-                )}
+                 <div className={cn(
+                    "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 flex items-center",
+                    isUser ? "-right-10" : "-left-10"
+                )}>
+                    {hasGuardrailInfo && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={onGuardrailClick}
+                        >
+                            {message.isBlocked ? <ShieldAlert className="h-5 w-5 text-muted-foreground" /> : <Shield className="h-5 w-5 text-muted-foreground/70" />}
+                            <span className="sr-only">View Guardrail Details</span>
+                        </Button>
+                    )}
+                     {!isUser && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <Heart className="h-5 w-5 text-muted-foreground/70" />
+                            <span className="sr-only">Like message</span>
+                        </Button>
+                    )}
+                </div>
             </div>
         </div>
     );
