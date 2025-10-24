@@ -16,3 +16,5 @@ export interface Conversation {
     title: string;
     createdAt: FieldValue;
 }
+
+export type ChatMessageType = ChatMessage;

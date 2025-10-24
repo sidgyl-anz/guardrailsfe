@@ -6,9 +6,8 @@ import { User, HeartPulse, Shield, ShieldAlert, Ban } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { type ChatMessage as ChatMessageType } from '@/lib/types';
-import { Skeleton } from './ui/skeleton';
 import { Button } from './ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -57,30 +56,27 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
 
                                 if (citationLinks.length > 0) {
                                     parts.push(
-                                        <Popover key={`${match.index}-${index}`}>
-                                            <PopoverTrigger asChild>
-                                                <span className="text-primary font-semibold cursor-pointer">
-                                                    {citationLinks.map((link) => `[${link.number}]`).join('')}
-                                                </span>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="max-w-xs break-words" align="start">
-                                                <ul className="space-y-2">
-                                                    {citationLinks.map((link) => (
-                                                        <li key={link.uri}>
+                                        <TooltipProvider delayDuration={100} key={`${match.index}-${index}`}>
+                                            <span className="inline-flex">
+                                                {citationLinks.map((link) => (
+                                                    <Tooltip key={link.uri || link.number}>
+                                                        <TooltipTrigger asChild>
                                                             <a
                                                                 href={link.uri}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="hover:underline"
+                                                                className="text-primary font-semibold cursor-pointer"
                                                             >
-                                                                <span className="font-semibold text-primary mr-2">[{link.number}]</span>
-                                                                {link.title}
+                                                                [{link.number}]
                                                             </a>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </PopoverContent>
-                                        </Popover>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="max-w-xs break-words text-sm">
+                                                            {link.title}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                ))}
+                                            </span>
+                                        </TooltipProvider>
                                     );
                                 } else {
                                      parts.push(match[0]); // If no valid link found, render as text
@@ -164,14 +160,9 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
 
 export function LoadingMessage() {
     return (
-        <div className="flex items-start gap-4 flex-row-reverse">
-             <Avatar className="h-10 w-10">
-                <AvatarFallback>
-                    <User />
-                </AvatarFallback>
-            </Avatar>
-            <div className="max-w-prose rounded-lg p-4 shadow-md bg-primary text-primary-foreground">
-                <Skeleton className="h-6 w-24" />
+        <div className="flex items-center justify-start">
+            <div className="rounded-full bg-primary/10 px-4 py-2 shadow-inner">
+                <span className="text-primary text-lg font-semibold tracking-[0.4em] animate-pulse">...</span>
             </div>
         </div>
     );
