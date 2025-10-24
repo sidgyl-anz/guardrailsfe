@@ -243,7 +243,7 @@ export default function Home() {
     !!user && !hasMessages && !isLoading && !isLoadingMessages;
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
+    <div className="h-screen w-full flex flex-col bg-background text-foreground overflow-hidden">
         <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
             <div className="flex items-center gap-2">
                 <h1 className="text-xl font-headline font-bold text-primary flex items-center gap-2">
@@ -367,3 +367,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
