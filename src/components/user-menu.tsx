@@ -1,7 +1,7 @@
 
 "use client";
 
-import { LogOut, User as UserIcon } from 'lucide-react';
+import { LogOut, HeartPulse } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import {
   DropdownMenu,
@@ -38,15 +38,13 @@ export function UserMenu() {
 
   if (!user) return null;
   
-  const userInitial = user.email ? user.email.charAt(0).toUpperCase() : <UserIcon className="h-5 w-5" />;
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarFallback>
-                {userInitial}
+            <AvatarFallback className="bg-blue-50 text-blue-600">
+              <HeartPulse className="h-4 w-4" />
             </AvatarFallback>
           </Avatar>
         </Button>
