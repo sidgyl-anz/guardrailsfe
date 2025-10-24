@@ -225,7 +225,7 @@ export default function Home() {
         />
       </Sidebar>
       <SidebarInset>
-        <div className="flex h-screen max-h-screen flex-col bg-background text-foreground">
+        <div className="flex h-screen max-h-screen flex-col bg-slate-100 text-foreground">
             <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <SidebarTrigger className="md:hidden">
