@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, FormEvent } from 'react';
 import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { Send, HeartPulse, Code, LogIn, Menu } from 'lucide-react';
+import { Send, HeartPulse, Code, LogIn, Menu, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
