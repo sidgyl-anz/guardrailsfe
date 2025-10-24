@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useRef, useEffect, FormEvent } from 'react';
 import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { Send, Gem, Code, LogIn, Menu } from 'lucide-react';
+import { Send, HeartPulse, Code, LogIn, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
@@ -231,7 +232,7 @@ export default function Home() {
                         <Menu />
                     </SidebarTrigger>
                     <h1 className="text-xl font-headline font-bold flex items-center gap-2">
-                    <Gem className="text-blue-500" />
+                    <HeartPulse className="text-blue-500" />
                     Safe Health Chat
                     </h1>
                 </div>
@@ -282,7 +283,7 @@ export default function Home() {
                         </div>
                     ) : messages?.length === 0 && !isLoading ? (
                         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                        <Gem className="h-16 w-16 text-blue-500 mb-4" />
+                        <HeartPulse className="h-16 w-16 text-blue-500 mb-4" />
                         <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
                         <p className="max-w-md text-muted-foreground">
                             Your conversations are saved here. Start a new one below.
