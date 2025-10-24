@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -15,10 +14,10 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
     return (
         <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            className="prose dark:prose-invert prose-p:leading-relaxed prose-sm"
+            className="prose dark:prose-invert prose-p:leading-relaxed prose-sm max-w-none"
             components={{
                 a: ({ node, ...props }) => {
-                    return <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary-foreground hover:underline" />;
+                    return <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" />;
                 },
                 p: ({ children, ...props }) => {
                     const processedChildren = React.Children.toArray(children).flatMap((child, index) => {
@@ -38,7 +37,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                             }
 
                             const citationNumber = parseInt(match[1], 10);
-                            const reference = references?.find(ref => ref.title?.includes(`[${citationNumber}]`) || ref.url?.includes(`[${citationNumber}]`)) || references?.[citationNumber - 1];
+                            const reference = references?.[citationNumber - 1];
 
                             if (reference?.url) {
                                 parts.push(
@@ -48,7 +47,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                                                 href={reference.url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-blue-300 font-semibold cursor-pointer hover:underline"
+                                                className="text-blue-600 font-semibold cursor-pointer hover:underline"
                                             >
                                                 [{citationNumber}]
                                             </a>
@@ -65,7 +64,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                         }
 
                         const remainingText = child.substring(lastIndex);
-                        if (remainingText) {
+if (remainingText) {
                             parts.push(remainingText);
                         }
                         
@@ -90,7 +89,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     return (
         <div className={cn('group flex items-start gap-4', isUser ? '' : '')}>
             <Avatar className={cn("h-10 w-10 border", isUser ? "bg-background" : "bg-primary text-primary-foreground")}>
-                <AvatarFallback className={cn("bg-transparent")}>
+                <AvatarFallback className={cn("bg-transparent", isUser ? "" : "text-blue-500")}>
                     {isUser ? <User /> : <Gem />}
                 </AvatarFallback>
             </Avatar>
@@ -99,7 +98,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                 <div
                     className={cn(
                         'max-w-prose rounded-lg p-4 shadow-sm',
-                         isUser ? 'bg-white' : 'bg-primary text-primary-foreground',
+                         isUser ? 'bg-card' : 'bg-primary',
                         message.isBlocked && 'bg-muted border'
                     )}
                 >
@@ -110,8 +109,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         </div>
                     )}
                     <div className={cn(
-                        "font-body text-base leading-relaxed",
-                         isUser ? "text-foreground" : "text-primary-foreground",
+                        "font-body text-base leading-relaxed text-foreground",
                         message.isBlocked ? "text-muted-foreground italic" : ""
                     )}>
                         <MemoizedReactMarkdown content={message.content} references={message.references || []} />
@@ -145,7 +143,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
 }
 
 const BlinkingDots = () => (
-    <div className="flex items-center space-x-1">
+    <div className="flex items-center space-x-1 text-foreground">
         <span className="h-2 w-2 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-current"></span>
         <span className="h-2 w-2 animate-[pulse_1s_ease-in-out_0.2s_infinite] rounded-full bg-current"></span>
         <span className="h-2 w-2 animate-[pulse_1s_ease-in-out_0.4s_infinite] rounded-full bg-current"></span>
@@ -156,7 +154,7 @@ export function LoadingMessage() {
     return (
         <div className="flex items-start gap-4">
             <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
-                <AvatarFallback className="bg-transparent">
+                <AvatarFallback className="bg-transparent text-blue-500">
                     <Gem />
                 </AvatarFallback>
             </Avatar>
