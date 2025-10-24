@@ -115,14 +115,12 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     const hasGuardrailInfo = !!message.guardrailResult;
 
     return (
-        <div className={cn('group flex items-start gap-4', isUser ? 'justify-start' : 'justify-end')}>
-            {!isUser && (
-                <Avatar className="h-10 w-10">
-                    <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
-                        <User />
-                    </AvatarFallback>
-                </Avatar>
-            )}
+        <div className={cn('group flex items-start gap-4', isUser ? '' : 'flex-row-reverse')}>
+            <Avatar className="h-10 w-10">
+                <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
+                    {isUser ? <HeartPulse /> : <User />}
+                </AvatarFallback>
+            </Avatar>
 
             <div className="relative">
                 <div
@@ -150,8 +148,8 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         variant="ghost"
                         size="icon"
                         className={cn(
-                            "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-100",
-                            !isUser ? "-left-10" : "-right-10",
+                            "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100",
+                            isUser ? "-right-10" : "-left-10"
                         )}
                         onClick={onGuardrailClick}
                     >
@@ -160,30 +158,20 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                     </Button>
                 )}
             </div>
-            
-            {isUser && (
-                 <Avatar className="h-10 w-10 border border-primary/20">
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
-                        <HeartPulse />
-                    </AvatarFallback>
-                </Avatar>
-            )}
         </div>
     );
 }
 
 export function LoadingMessage() {
     return (
-        <div className="flex items-start gap-4 justify-end">
+        <div className="flex items-start gap-4 flex-row-reverse">
              <Avatar className="h-10 w-10">
                 <AvatarFallback>
                     <User />
                 </AvatarFallback>
             </Avatar>
             <div className="max-w-prose rounded-lg p-4 shadow-md bg-primary text-primary-foreground">
-                <div className="flex items-center justify-center h-[24px]">
-                    <div className="h-2 w-2 animate-pulse bg-primary-foreground/50 rounded-full" />
-                </div>
+                <Skeleton className="h-6 w-24" />
             </div>
         </div>
     );

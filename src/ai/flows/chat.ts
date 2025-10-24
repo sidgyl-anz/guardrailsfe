@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileoverview A flow that interacts with the Perplexity API for chat completions.
@@ -58,15 +59,8 @@ const chatFlow = ai.defineFlow(
     });
 
     if (!response.ok) {
-      let errorDetails = `Perplexity API responded with status ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorDetails = errorData.error?.message || JSON.stringify(errorData);
-      } catch (e) {
-        // If the error response isn't JSON, use the raw text.
-        errorDetails = await response.text();
-      }
-      throw new Error(errorDetails);
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || `Perplexity API responded with status ${response.status}`);
     }
 
     const data = await response.json();
