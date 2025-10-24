@@ -115,11 +115,11 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     const hasGuardrailInfo = !!message.guardrailResult;
 
     return (
-        <div className={cn('group flex items-start gap-4 animate-in fade-in', !isUser ? 'justify-end' : 'justify-start')}>
-            {isUser && (
-                 <Avatar className="h-10 w-10 border border-primary/20">
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
-                        <HeartPulse />
+        <div className={cn('group flex items-start gap-4', isUser ? 'justify-start' : 'justify-end')}>
+            {!isUser && (
+                <Avatar className="h-10 w-10">
+                    <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
+                        <User />
                     </AvatarFallback>
                 </Avatar>
             )}
@@ -128,25 +128,21 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                 <div
                     className={cn(
                         'max-w-prose rounded-lg p-4 shadow-md',
-                        'bg-card text-card-foreground',
+                        isUser ? 'bg-card text-card-foreground' : 'bg-primary text-primary-foreground',
                         message.isBlocked && 'bg-muted border'
                     )}
                 >
                     {message.isBlocked && (
                         <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
                             <Ban className="h-4 w-4" />
-                            <span>I cannot provide a response to this. Please rephrase your question.</span>
+                            <span>This content was blocked by the safety filter.</span>
                         </div>
                     )}
                     <div className={cn(
                         "font-body text-base leading-relaxed",
-                        message.isBlocked ? "text-muted-foreground italic whitespace-pre-wrap" : ""
+                        message.isBlocked ? "text-muted-foreground italic" : ""
                     )}>
-                        {isUser ? (
-                             <MemoizedReactMarkdown content={message.content} references={message.references || []} />
-                        ) : (
-                           <div className="whitespace-pre-wrap">{message.content}</div>
-                        )}
+                        <MemoizedReactMarkdown content={message.content} references={message.references || []} />
                     </div>
                 </div>
                 {hasGuardrailInfo && (
@@ -165,10 +161,10 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                 )}
             </div>
             
-            {!isUser && (
-                <Avatar className="h-10 w-10">
-                    <AvatarFallback className={cn("bg-card text-card-foreground", message.isBlocked && "bg-muted text-muted-foreground")}>
-                        <User />
+            {isUser && (
+                 <Avatar className="h-10 w-10 border border-primary/20">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
+                        <HeartPulse />
                     </AvatarFallback>
                 </Avatar>
             )}
@@ -178,8 +174,17 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
 
 export function LoadingMessage() {
     return (
-        <div className='flex items-center justify-start h-[52px]'>
-            <div className="h-2 w-2 animate-pulse bg-primary rounded-full" />
+        <div className="flex items-start gap-4 justify-end">
+             <Avatar className="h-10 w-10">
+                <AvatarFallback>
+                    <User />
+                </AvatarFallback>
+            </Avatar>
+            <div className="max-w-prose rounded-lg p-4 shadow-md bg-primary text-primary-foreground">
+                <div className="flex items-center justify-center h-[24px]">
+                    <div className="h-2 w-2 animate-pulse bg-primary-foreground/50 rounded-full" />
+                </div>
+            </div>
         </div>
     );
 }

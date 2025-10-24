@@ -21,8 +21,6 @@ import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { DebugView } from '@/components/debug-view';
 import { cn } from '@/lib/utils';
 
-const GUARDRAIL_TIMEOUT = 120000; // 2 minutes
-
 type ApiTransaction = {
   request: any;
   response: any;
@@ -76,48 +74,25 @@ export default function Home() {
   const callGuardrails = async (data: { user_prompt?: string; llm_response?: string }) => {
     if (!useGuardrails) return { is_safe: true, reason: 'guardrails_disabled' };
   
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), GUARDRAIL_TIMEOUT);
-  
     try {
       const response = await fetch("/api/guardrails", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-        signal: controller.signal,
       });
-      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        // Handle server-side timeouts (like 504) gracefully
-        if (response.status === 504) {
-          toast({
-            variant: 'destructive',
-            title: 'Guardrail Service Timeout',
-            description: 'The safety check took too long. The service may be starting up. Please try again in a moment.',
-          });
-          return null; // indicate failure
-        }
         let errorDetails = `Guardrails API responded with status ${response.status}`;
         try {
             const errorData = await response.json();
             errorDetails = errorData.error?.message || JSON.stringify(errorData);
         } catch (e) {
-            // If the error response isn't JSON, use the raw text.
             errorDetails = await response.text();
         }
         throw new Error(errorDetails);
       }
       return await response.json();
     } catch (error: any) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        toast({
-          variant: 'destructive',
-          title: 'Guardrail Service Timeout',
-          description: 'The safety check took too long. The service may be starting up. Please try again in a moment.',
-        });
-        return null;
-      }
       console.error("Guardrails API error:", error);
       toast({
         variant: 'destructive',
@@ -136,7 +111,6 @@ export default function Home() {
 
     let currentConversationId = activeConversation?.id;
 
-    // Create a new conversation if one doesn't exist
     if (!currentConversationId) {
         if (!user) return;
         const newConversationData = { title: input.substring(0, 40), createdAt: serverTimestamp() };
@@ -155,10 +129,8 @@ export default function Home() {
 
     const messagesRef = collection(firestore, 'users', user.uid, 'conversations', currentConversationId, 'messages');
 
-    // 1. Handle user's message and guardrail
     const inputGuardrailResult = await callGuardrails({ user_prompt: input });
     
-    // If timeout or other error, stop processing
     if (inputGuardrailResult === null) {
       setIsLoading(false);
       return;
@@ -185,7 +157,6 @@ export default function Home() {
       return;
     }
 
-    // 2. Call the AI
     const messageHistory = [...(messages || []), userMessage]
       .filter(m => !m.isBlocked)
       .map(({ role, content }) => ({ role, content: content || "" }));
@@ -203,10 +174,9 @@ export default function Home() {
       let aiResponseContent = data.choices[0].message.content;
       let references = data.search_results?.map((r: any) => ({ uri: r.url, title: r.title || r.url })) || [];
 
-      // 3. Handle AI response and guardrail
       const outputGuardrailResult = await callGuardrails({ llm_response: aiResponseContent });
 
-      if (!outputGuardrailResult) { // Check for null response
+      if (!outputGuardrailResult) {
         setIsLoading(false);
         return;
       }
@@ -238,10 +208,6 @@ export default function Home() {
 
   const isChatDisabled = isLoading || !user;
 
-  const hasMessages = (messages?.length ?? 0) > 0;
-  const shouldFloatPrompt =
-    !!user && !hasMessages && !isLoading && !isLoadingMessages;
-
   return (
     <div className="h-screen w-full flex flex-col bg-background text-foreground overflow-hidden">
         <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
@@ -267,96 +233,94 @@ export default function Home() {
             </div>
         </header>
 
-        <Collapsible open={isDebugViewVisible} onOpenChange={setIsDebugViewVisible}>
-        <CollapsibleContent>
-            {lastApiTransaction && (
-            <div className="p-4 bg-muted/50 border-b">
-                <DebugView 
-                request={lastApiTransaction.request}
-                response={lastApiTransaction.response}
-                />
-            </div>
-            )}
-        </CollapsibleContent>
-        </Collapsible>
-
-        <main className="flex-1 relative overflow-y-auto" ref={viewportRef}>
-            <div className={cn('p-4 space-y-4 pb-32')}>
-                {isLoadingMessages && !messages && (
-                    <div className="flex justify-start">
-                        <LoadingMessage />
-                    </div>
-                )}
-                {!user && !isUserLoading ? (
-                    <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                        <LogIn className="h-16 w-16 text-primary mb-4" />
-                        <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
-                        <p className="max-w-md text-muted-foreground mb-4">
-                        To begin your secure and personalized health chat, please log in or create an account.
-                        </p>
-                        <AuthDialog />
-                    </div>
-                ) : messages?.length === 0 && !isLoading ? (
-                    <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
-                    <HeartPulse className="h-16 w-16 text-primary mb-4" />
-                    <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
-                    <p className="max-w-md text-muted-foreground">
-                        Your conversations are saved here. Start a new one below or select a previous chat from the sidebar.
-                    </p>
-                    </div>
-                ) : (
-                    messages?.map((msg) => (
-                    <ChatMessage 
-                        key={msg.id} 
-                        message={msg} 
-                        onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
+        <div className="flex-1 flex flex-col overflow-y-auto">
+            <Collapsible open={isDebugViewVisible} onOpenChange={setIsDebugViewVisible}>
+            <CollapsibleContent>
+                {lastApiTransaction && (
+                <div className="p-4 bg-muted/50 border-b">
+                    <DebugView 
+                    request={lastApiTransaction.request}
+                    response={lastApiTransaction.response}
                     />
-                    ))
-                )}
-                {isLoading && (
-                    <div className="flex justify-start">
-                        <LoadingMessage />
-                    </div>
-                )}
-            </div>
-
-            <div
-                className={cn(
-                'absolute inset-x-0 bottom-0 bg-gradient-to-t from-background to-transparent',
-                shouldFloatPrompt ? 'p-4 flex justify-center items-end' : 'p-4'
-                )}
-            >
-                <div
-                className={cn(
-                    'max-w-2xl w-full mx-auto',
-                    shouldFloatPrompt ? 'bg-card border shadow-xl rounded-2xl p-4' : ''
-                )}
-                >
-                <form onSubmit={handleSubmit} className="relative">
-                    <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
-                    className="pr-20 min-h-[52px] resize-none shadow-lg border-input"
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit(e);
-                        }
-                    }}
-                    disabled={isChatDisabled}
-                    rows={1}
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
-                        <Send className="h-5 w-5" />
-                        <span className="sr-only">Send</span>
-                    </Button>
-                    </div>
-                </form>
                 </div>
-            </div>
-        </main>
+                )}
+            </CollapsibleContent>
+            </Collapsible>
+
+            <main className="flex-1 relative" ref={viewportRef}>
+                <div className="h-full overflow-y-auto">
+                    <div className={cn('p-4 space-y-4 pb-32')}>
+                        {isLoadingMessages && !messages && (
+                            <div className="flex justify-start">
+                                <LoadingMessage />
+                            </div>
+                        )}
+                        {!user && !isUserLoading ? (
+                            <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                                <LogIn className="h-16 w-16 text-primary mb-4" />
+                                <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
+                                <p className="max-w-md text-muted-foreground mb-4">
+                                To begin your secure and personalized health chat, please log in or create an account.
+                                </p>
+                                <AuthDialog />
+                            </div>
+                        ) : messages?.length === 0 && !isLoading ? (
+                            <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[60vh]">
+                            <HeartPulse className="h-16 w-16 text-primary mb-4" />
+                            <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
+                            <p className="max-w-md text-muted-foreground">
+                                Your conversations are saved here. Start a new one below.
+                            </p>
+                            </div>
+                        ) : (
+                            messages?.map((msg) => (
+                            <ChatMessage 
+                                key={msg.id} 
+                                message={msg} 
+                                onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
+                            />
+                            ))
+                        )}
+                        {isLoading && (
+                            <div className="flex justify-start">
+                                <LoadingMessage />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div
+                    className={cn(
+                    'absolute inset-x-0 bottom-0 bg-gradient-to-t from-background to-transparent p-4'
+                    )}
+                >
+                    <div className='max-w-2xl w-full mx-auto'>
+                    <form onSubmit={handleSubmit} className="relative">
+                        <Textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
+                        className="pr-20 min-h-[52px] resize-none shadow-lg border-input"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmit(e);
+                            }
+                        }}
+                        disabled={isChatDisabled}
+                        rows={1}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
+                            <Send className="h-5 w-5" />
+                            <span className="sr-only">Send</span>
+                        </Button>
+                        </div>
+                    </form>
+                    </div>
+                </div>
+            </main>
+        </div>
       <GuardrailResultDialog
         result={selectedGuardrailResult}
         isOpen={!!selectedGuardrailResult}
@@ -367,5 +331,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
