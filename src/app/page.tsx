@@ -121,14 +121,21 @@ export default function Home() {
 
       if (!response.ok) {
         let errorDetails = `Guardrails API responded with status ${response.status}`;
+
         try {
-            const errorData = await response.json();
-            errorDetails = errorData.error?.message || JSON.stringify(errorData);
-        } catch (e) {
+          const errorData = await response.clone().json();
+          errorDetails = errorData.error?.message || JSON.stringify(errorData);
+        } catch (jsonError) {
+          try {
             errorDetails = await response.text();
+          } catch (textError) {
+            console.error('Failed to read guardrails error response:', textError);
+          }
         }
+
         throw new Error(errorDetails);
       }
+
       return await response.json();
     } catch (error: any) {
       console.error("Guardrails API error:", error);
