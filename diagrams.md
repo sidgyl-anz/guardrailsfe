@@ -77,7 +77,5 @@ flowchart LR
     M -- Responses --> B
     G -- Validated Replies --> B
     B -- Read/Write --> D
-    A -- Credential Checks --> D
     B -- Event Streams --> L
-    W -- UX Metrics --> L
 ```
