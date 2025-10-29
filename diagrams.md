@@ -80,5 +80,5 @@ flowchart LR
     G -- Validated Replies --> B
     B -- Prompt Orchestration --> L
     L -- Responses --> B
-    B -- Read/Write --> D
+    B -- Write --> D
 ```
