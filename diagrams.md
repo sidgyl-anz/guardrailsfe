@@ -51,7 +51,7 @@ flowchart LR
     end
 
     subgraph Presentation Layer
-        W[Chatbot]
+        C[Chatbot]
     end
 
     subgraph Application Layer
@@ -61,21 +61,21 @@ flowchart LR
     end
 
     subgraph LLM Layer
-        M[LLM]
+        L[LLM]
     end
 
     subgraph Data Layer
         D[(ChatHistoryDB)]
-        L[(UserDB)]
+        F[(FirebaseUserDB)]
     end
 
-    U -- HTTP Requests --> W
-    W -- API Calls --> B
-    W -- Auth Requests --> A
+    U -- HTTP Requests --> C
+    C -- API Calls --> B
+    C -- Auth Requests --> A
+    A -- Auth Check --> F
     B -- Policy Checks --> G
-    B -- Prompt Orchestration --> M
-    M -- Responses --> B
     G -- Validated Replies --> B
+    B -- Prompt Orchestration --> L
+    L -- Responses --> B
     B -- Read/Write --> D
-    B -- Event Streams --> L
 ```
