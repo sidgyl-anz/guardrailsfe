@@ -73,8 +73,8 @@ flowchart LR
     W -- API Calls --> B
     W -- Auth Requests --> A
     B -- Policy Checks --> G
-    G -- Prompt Orchestration --> M
-    M -- Responses --> G
+    B -- Prompt Orchestration --> M
+    M -- Responses --> B
     G -- Validated Replies --> B
     B -- Read/Write --> D
     A -- Credential Checks --> D
