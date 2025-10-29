@@ -6,15 +6,20 @@ sequenceDiagram
     participant User
     participant WebApp
     participant Backend
-    participant Model
+    participant Guardrails as Guardrails Middleware
+    participant LLM as LLM Service
     participant Database
 
     User->>WebApp: Send chat message
     WebApp->>Backend: POST /chat message payload
-    Backend->>Database: Persist message
+    Backend->>Database: Persist user message
     Database-->>Backend: Ack saved message
-    Backend->>Model: Request response with context
-    Model-->>Backend: AI-generated reply
+    Backend->>Guardrails: Submit message for policy validation
+    Guardrails-->>Backend: Validation result (allow)
+    Backend->>Guardrails: Request LLM response
+    Guardrails->>LLM: Forward sanitized prompt & context
+    LLM-->>Guardrails: AI-generated reply
+    Guardrails-->>Backend: Guarded response payload
     Backend->>Database: Store AI reply
     Database-->>Backend: Ack saved reply
     Backend-->>WebApp: Response payload with AI reply
@@ -51,8 +56,9 @@ flowchart LR
 
     subgraph Application Layer
         B[Backend API]
-        A[Authentication Service]
+        G[Guardrails Middleware]
         M[AI Model Service]
+        A[Authentication Service]
     end
 
     subgraph Data Layer
@@ -63,8 +69,10 @@ flowchart LR
     U -- HTTP Requests --> W
     W -- API Calls --> B
     W -- Auth Requests --> A
-    B -- Chat Context --> M
-    M -- Responses --> B
+    B -- Policy Checks --> G
+    G -- Prompt Orchestration --> M
+    M -- Responses --> G
+    G -- Validated Replies --> B
     B -- Read/Write --> D
     A -- Credential Checks --> D
     B -- Event Streams --> L
