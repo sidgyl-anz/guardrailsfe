@@ -4,43 +4,43 @@
 ```mermaid
 sequenceDiagram
     participant User
-    participant WebApp
+    participant Chatbot
     participant Backend
-    participant Guardrails as Guardrails Middleware
-    participant LLM as LLM Service
-    participant Database
+    participant Guardrails
+    participant LLM
+    participant ChatHistoryDB
 
-    User->>WebApp: Send chat message
-    WebApp->>Backend: POST /chat message payload
-    Backend->>Database: Persist user message
-    Database-->>Backend: Ack saved message
+    User->>Chatbot: Send chat message
+    Chatbot->>Backend: POST /chat message payload
     Backend->>Guardrails: Submit message for policy validation
     Guardrails-->>Backend: Validation result (allow)
+    Backend->>ChatHistoryDB: Persist user message
+    ChatHistoryDB-->>Backend: Ack saved message
     Backend->>Guardrails: Request LLM response
     Guardrails->>LLM: Forward sanitized prompt & context
     LLM-->>Guardrails: AI-generated reply
     Guardrails-->>Backend: Guarded response payload
-    Backend->>Database: Store AI reply
-    Database-->>Backend: Ack saved reply
-    Backend-->>WebApp: Response payload with AI reply
-    WebApp-->>User: Render updated conversation
+    Backend->>ChatHistoryDB: Store AI reply
+    ChatHistoryDB-->>Backend: Ack saved reply
+    Backend-->>Chatbot: Response payload with AI reply
+    Chatbot-->>User: Render updated conversation
 ```
 
 ## Logon Flow Sequence Diagram
 ```mermaid
 sequenceDiagram
     participant User
-    participant WebApp
+    participant Chatbot
     participant AuthService
-    participant Database
+    participant ChatHistoryDB
 
-    User->>WebApp: Submit credentials
-    WebApp->>AuthService: POST /login (credentials)
-    AuthService->>Database: Validate user record
-    Database-->>AuthService: User record & password hash
+    User->>Chatbot: Submit credentials
+    Chatbot->>AuthService: POST /login (credentials)
+    AuthService->>ChatHistoryDB: Validate user record
+    ChatHistoryDB-->>AuthService: User record & password hash
     AuthService->>AuthService: Verify password & generate token
-    AuthService-->>WebApp: Auth token & session info
-    WebApp-->>User: Set session & redirect to dashboard
+    AuthService-->>Chatbot: Auth token & session info
+    Chatbot-->>User: Set session & redirect to dashboard
 ```
 
 ## Overall Data Flow Diagram (DFD)
@@ -62,7 +62,7 @@ flowchart LR
     end
 
     subgraph Data Layer
-        D[(Database)]
+        D[(ChatHistoryDB)]
         L[(Logs/Analytics)]
     end
 
