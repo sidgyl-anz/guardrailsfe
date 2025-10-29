@@ -16,9 +16,9 @@ sequenceDiagram
     Guardrails-->>Backend: Validation result (allow)
     Backend->>ChatHistoryDB: Persist user message
     ChatHistoryDB-->>Backend: Ack saved message
-    Backend->>Guardrails: Request LLM response
-    Guardrails->>LLM: Forward sanitized prompt & context
-    LLM-->>Guardrails: AI-generated reply
+    Backend->>LLM: Request LLM response
+    LLM-->>Backend: AI-generated reply
+    Backend->>Guardrails: Submit message for policy validation
     Guardrails-->>Backend: Guarded response payload
     Backend->>ChatHistoryDB: Store AI reply
     ChatHistoryDB-->>Backend: Ack saved reply
