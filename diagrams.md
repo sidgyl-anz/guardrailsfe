@@ -61,6 +61,10 @@ flowchart LR
         A[AuthService]
     end
 
+    subgraph LLM Layer
+        M[LLM]
+    end
+
     subgraph Data Layer
         D[(ChatHistoryDB)]
         L[(UserDB)]
