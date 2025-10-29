@@ -59,15 +59,16 @@ flowchart LR
         G[Guardrails]
         A[AuthService]
     end
+    subgraph Data Layer
+        D[(ChatHistoryDB)]
+        F[(FirebaseUserDB)]
+    end
 
     subgraph LLM Layer
         L[LLM]
     end
 
-    subgraph Data Layer
-        D[(ChatHistoryDB)]
-        F[(FirebaseUserDB)]
-    end
+
 
     U -- HTTP Requests --> C
     C -- API Calls --> B
