@@ -47,23 +47,23 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     subgraph Client Layer
-        U[User Browser]
+        U[User]
     end
 
     subgraph Presentation Layer
-        W[Web Application]
+        W[Chatbot]
     end
 
     subgraph Application Layer
-        B[Backend API]
-        G[Guardrails Middleware]
-        M[AI Model Service]
-        A[Authentication Service]
+        B[Backend]
+        G[Guardrails]
+        M[LLM]
+        A[AuthService]
     end
 
     subgraph Data Layer
         D[(ChatHistoryDB)]
-        L[(Logs/Analytics)]
+        L[(UserDB)]
     end
 
     U -- HTTP Requests --> W
