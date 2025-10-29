@@ -57,7 +57,6 @@ flowchart LR
     subgraph Application Layer
         B[Backend]
         G[Guardrails]
-        M[LLM]
         A[AuthService]
     end
 
