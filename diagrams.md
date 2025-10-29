@@ -54,15 +54,17 @@ flowchart LR
         C[Chatbot]
     end
 
+    subgraph Data Layer
+        D[(ChatHistoryDB)]
+        F[(FirebaseUserDB)]
+    end
+
     subgraph Application Layer
         B[Backend]
         G[Guardrails]
         A[AuthService]
     end
-    subgraph Data Layer
-        D[(ChatHistoryDB)]
-        F[(FirebaseUserDB)]
-    end
+
 
     subgraph LLM Layer
         L[LLM]
