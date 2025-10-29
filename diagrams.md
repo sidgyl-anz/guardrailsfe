@@ -77,7 +77,4 @@ flowchart LR
     A -- Credential Checks --> D
     B -- Event Streams --> L
     W -- UX Metrics --> L
-    U <-- Rendered UI -- W
-    W <-- Auth Tokens -- A
-    B <-- Stored Responses -- D
 ```
