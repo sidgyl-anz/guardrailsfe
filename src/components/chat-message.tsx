@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { User, Gem, Shield, ShieldAlert, Ban, Heart } from 'lucide-react';
+import { User, Gem, Shield, ShieldAlert, Ban, HeartPulse } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { type ChatMessage as ChatMessageType } from '@/lib/types';
@@ -88,17 +88,19 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     const hasGuardrailInfo = !!message.guardrailResult;
 
     return (
-        <div className={cn('group flex items-start gap-4', isUser ? '' : '')}>
-            <Avatar className={cn("h-10 w-10 border", isUser ? "bg-background" : "bg-primary text-primary-foreground")}>
-                <AvatarFallback className={cn("bg-transparent", isUser ? "" : "text-blue-500")}>
-                    {isUser ? <User /> : <Gem />}
-                </AvatarFallback>
-            </Avatar>
+        <div className={cn('group flex items-start gap-4', isUser ? 'justify-end' : '')}>
+            {!isUser && (
+                 <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
+                    <AvatarFallback className="bg-transparent text-blue-500">
+                        <Gem />
+                    </AvatarFallback>
+                </Avatar>
+            )}
 
-            <div className={cn("relative flex-1")}>
+            <div className={cn("relative flex-1 max-w-prose", isUser ? 'order-1' : 'order-2')}>
                 <div
                     className={cn(
-                        'max-w-prose rounded-lg p-4 shadow-sm',
+                        'rounded-lg p-4 shadow-sm',
                          isUser ? 'bg-card' : 'bg-primary',
                         message.isBlocked && 'bg-muted border'
                     )}
@@ -118,7 +120,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                 </div>
                  <div className={cn(
                     "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 flex items-center",
-                     isUser ? "-right-10" : "left-full ml-2"
+                     isUser ? "-left-10 order-1" : "right-full mr-2 order-2"
                 )}>
                     {hasGuardrailInfo && (
                         <Button
@@ -131,14 +133,16 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                             <span className="sr-only">View Guardrail Details</span>
                         </Button>
                     )}
-                     {!isUser && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <Heart className="h-5 w-5 text-muted-foreground/70" />
-                            <span className="sr-only">Like message</span>
-                        </Button>
-                    )}
                 </div>
             </div>
+
+            {isUser && (
+                <Avatar className="h-10 w-10 border bg-blue-50 text-blue-600 order-2">
+                    <AvatarFallback className="bg-transparent">
+                        <HeartPulse />
+                    </AvatarFallback>
+                </Avatar>
+            )}
         </div>
     );
 }
