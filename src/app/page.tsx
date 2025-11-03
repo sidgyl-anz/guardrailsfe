@@ -19,7 +19,7 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { DebugView } from '@/components/debug-view';
-<<<<<<< HEAD
+
 import {
   Select,
   SelectContent,
@@ -27,8 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-=======
->>>>>>> bb7897d (pls remove side bar on the left)
+
 import { cn } from '@/lib/utils';
 
 type ApiTransaction = {
@@ -289,7 +288,6 @@ export default function Home() {
       : 'No conversations yet';
 
   return (
-<<<<<<< HEAD
     <div className="flex h-screen flex-col bg-background text-foreground">
       <header className="flex flex-col gap-4 border-b bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="flex flex-col gap-3">
@@ -417,7 +415,7 @@ export default function Home() {
           </div>
         </form>
       </footer>
-=======
+
     <>
       <div className="flex h-screen flex-col bg-background text-foreground">
           <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
@@ -522,7 +520,7 @@ export default function Home() {
               </form>
           </footer>
       </div>
->>>>>>> bb7897d (pls remove side bar on the left)
+
       <GuardrailResultDialog
         result={selectedGuardrailResult}
         isOpen={!!selectedGuardrailResult}
@@ -530,10 +528,9 @@ export default function Home() {
           if (!open) setSelectedGuardrailResult(null);
         }}
       />
-<<<<<<< HEAD
+
     </div>
-=======
-    </>
->>>>>>> bb7897d (pls remove side bar on the left)
+
+    </>t)
   );
 }
