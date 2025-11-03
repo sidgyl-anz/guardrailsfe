@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -152,8 +153,8 @@ const BlinkingDots = () => (
 
 export function LoadingMessage() {
     return (
-        <div className="flex items-start gap-4">
-            <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
+        <div className="group flex items-start gap-4">
+             <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
                 <AvatarFallback className="bg-transparent text-blue-500">
                     <Gem />
                 </AvatarFallback>
