@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect, FormEvent } from 'react';
-import { collection, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Send, HeartPulse, Code, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -111,19 +111,26 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // Automatically create a new conversation for the user if one doesn't exist
-    if (user && !activeConversation && !isLoadingMessages) {
-        const conversationsRef = collection(firestore, 'users', user.uid, 'conversations');
-        const q = query(conversationsRef, orderBy('createdAt', 'desc'));
-        onSnapshot(q, (snapshot) => {
-            if (snapshot.empty) {
-                createNewConversation();
-            } else if (!activeConversation) {
-                const latestConvo = snapshot.docs[0];
-                setActiveConversation({ id: latestConvo.id, ...(latestConvo.data() as Omit<Conversation, 'id'>) });
-            }
-        });
+    if (!user || activeConversation || isLoadingMessages || !firestore) {
+      return;
     }
+
+    const conversationsRef = collection(firestore, 'users', user.uid, 'conversations');
+    const conversationsQuery = query(conversationsRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(conversationsQuery, (snapshot) => {
+      if (snapshot.empty) {
+        createNewConversation();
+        return;
+      }
+
+      if (!activeConversation) {
+        const latestConvo = snapshot.docs[0];
+        setActiveConversation({ id: latestConvo.id, ...(latestConvo.data() as Omit<Conversation, 'id'>) });
+      }
+    });
+
+    return () => unsubscribe();
   }, [user, activeConversation, firestore, isLoadingMessages]);
 
 
@@ -288,12 +295,13 @@ export default function Home() {
       : 'No conversations yet';
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-      <header className="flex flex-col gap-4 border-b bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <HeartPulse className="h-6 w-6 text-blue-500" />
-            <h1 className="text-xl font-headline font-bold">Safe Health Chat</h1>
+    <>
+      <div className="flex h-screen flex-col bg-background text-foreground">
+        <header className="flex flex-col gap-4 border-b bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <HeartPulse className="h-6 w-6 text-blue-500" />
+              <h1 className="text-xl font-headline font-bold">Safe Health Chat</h1>
           </div>
           {user && (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -415,110 +423,6 @@ export default function Home() {
           </div>
         </form>
       </footer>
-
-    <>
-      <div className="flex h-screen flex-col bg-background text-foreground">
-          <header className="flex items-center justify-between p-4 border-b bg-card z-10 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-headline font-bold flex items-center gap-2">
-                  <HeartPulse className="text-blue-500" />
-                  Safe Health Chat
-                  </h1>
-              </div>
-              <div className="flex items-center gap-2">
-                  <SettingsDialog />
-                  <Button variant="ghost" size="icon" onClick={() => setIsDebugViewVisible(!isDebugViewVisible)}>
-                      <Code className="h-5 w-5" />
-                      <span className="sr-only">Toggle Debug View</span>
-                  </Button>
-                  {isUserLoading ? (
-                  <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
-                  ) : user ? (
-                  <UserMenu />
-                  ) : (
-                  <AuthDialog />
-                  )}
-              </div>
-          </header>
-          
-          <Collapsible open={isDebugViewVisible} onOpenChange={setIsDebugViewVisible}>
-          <CollapsibleContent>
-              {lastApiTransaction && (
-              <div className="p-4 bg-muted/50 border-b">
-                  <DebugView 
-                  request={lastApiTransaction.request}
-                  response={lastApiTransaction.response}
-                  />
-              </div>
-              )}
-          </CollapsibleContent>
-          </Collapsible>
-
-          <main className="flex-1 overflow-y-auto" ref={viewportRef}>
-              <div className="p-4 space-y-4 pb-32">
-                  {isLoadingMessages && !messages && (
-                      <div className="flex justify-center items-center h-full">
-                          <LoadingMessage />
-                      </div>
-                  )}
-                  {!user && !isUserLoading ? (
-                      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                          <LogIn className="h-16 w-16 text-primary mb-4" />
-                          <h2 className="text-2xl font-headline mb-2">Please Log In</h2>
-                          <p className="max-w-md text-muted-foreground mb-4">
-                          To begin your secure and personalized health chat, please log in or create an account.
-                          </p>
-                          <AuthDialog />
-                      </div>
-                  ) : messages?.length === 0 && !isLoading ? (
-                      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                      <HeartPulse className="h-16 w-16 text-blue-500 mb-4" />
-                      <h2 className="text-2xl font-headline mb-2">Welcome to Safe Health Chat</h2>
-                      <p className="max-w-md text-muted-foreground">
-                          Your conversations are saved here. Start a new one below.
-                      </p>
-                      </div>
-                  ) : (
-                      messages?.map((msg) => (
-                      <ChatMessage 
-                          key={msg.id} 
-                          message={msg} 
-                          onGuardrailClick={() => setSelectedGuardrailResult(msg.guardrailResult)}
-                      />
-                      ))
-                  )}
-                  {isLoading && (
-                      <div className={cn(messages?.length === 0 && "flex justify-center")}>
-                          <LoadingMessage />
-                      </div>
-                  )}
-              </div>
-          </main>
-
-          <footer className="p-4 border-t bg-card flex-shrink-0">
-              <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto">
-                  <Textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={user ? "Ask anything..." : "Please log in to start a conversation."}
-                  className="pr-20 min-h-[52px] resize-none shadow-lg border-input bg-white"
-                  onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e);
-                      }
-                  }}
-                  disabled={isChatDisabled}
-                  rows={1}
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <Button type="submit" size="icon" disabled={isChatDisabled || !input.trim()}>
-                      <Send className="h-5 w-5" />
-                      <span className="sr-only">Send</span>
-                  </Button>
-                  </div>
-              </form>
-          </footer>
       </div>
 
       <GuardrailResultDialog
@@ -528,9 +432,6 @@ export default function Home() {
           if (!open) setSelectedGuardrailResult(null);
         }}
       />
-
-    </div>
-
-    </>t)
+    </>
   );
 }
