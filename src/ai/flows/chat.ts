@@ -135,10 +135,18 @@ const perplexitySonar = ai.defineModel(
     }
     console.log('[FLOW] Received response from Perplexity.');
 
+    if (!data || !Array.isArray(data.choices) || data.choices.length === 0) {
+      console.error('[FLOW] Missing choices in Perplexity response:', data);
+      throw new Error('Perplexity response did not include any choices.');
+    }
 
-    // Perplexity provides choices, we'll take the first one.
     const choice = data.choices[0];
-    const message = choice.message;
+    const message = choice?.message;
+
+    if (!message || typeof message.content !== 'string') {
+      console.error('[FLOW] Missing assistant message in Perplexity response:', data);
+      throw new Error('Perplexity response did not include an assistant message.');
+    }
 
     return {
       candidates: [
