@@ -29,6 +29,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { callGuardrails } from './actions';
 
 type ApiTransaction = {
   request: any;
@@ -87,28 +88,8 @@ export default function Home() {
   const handleGuardrailCheck = async (data: { user_prompt?: string; llm_response?: string }) => {
     if (!useGuardrails) return { is_safe: true, reason: 'guardrails_disabled' };
 
-    const guardrailsUrl = '/api/guardrails';
-
     try {
-      const response = await fetch(guardrailsUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorDetails = errorText;
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorDetails = errorJson.error?.message || errorJson.details || errorText;
-        } catch (e) {
-          // Not a JSON response, use the raw text
-        }
-        throw new Error(errorDetails);
-      }
-
-      return await response.json();
+      return await callGuardrails(data);
     } catch (error: any) {
       console.error("Guardrails check failed:", error);
       const rawErrorMessage = error?.message || 'Failed to get a response from the guardrails service.';
