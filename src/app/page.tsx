@@ -389,7 +389,7 @@ export default function Home() {
               </CollapsibleContent>
 
               <main className="flex-1 overflow-y-auto" ref={viewportRef}>
-                <div className="space-y-4 p-4 pb-32">
+                <div className="space-y-4 p-4 pb-36">
                    {isLoadingMessages && !messages && (
                     <div className="flex h-full items-center justify-center">
                         <LoadingMessage />
@@ -429,7 +429,7 @@ export default function Home() {
                 </div>
               </main>
 
-              <footer className="flex-shrink-0 border-t bg-card p-4">
+              <footer className="sticky bottom-0 z-10 flex-shrink-0 border-t bg-card/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/75">
                 <form onSubmit={handleSubmit} className="relative mx-auto max-w-2xl">
                   <Textarea
                     value={input}
