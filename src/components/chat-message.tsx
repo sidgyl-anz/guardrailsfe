@@ -11,6 +11,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+const getDomainFromUrl = (url: string | undefined) => {
+    if (!url) return undefined;
+
+    try {
+        const hostname = new URL(url).hostname;
+        return hostname.replace(/^www\./, '');
+    } catch {
+        return undefined;
+    }
+};
+
 const CitationPopover = ({
     citationNumber,
     references,
@@ -23,6 +34,20 @@ const CitationPopover = ({
     if (!references || references.length === 0) {
         return <span>[{citationNumber}]</span>;
     }
+
+    const primaryReference = references[citationNumber - 1];
+    if (!primaryReference) {
+        return <span>[{citationNumber}]</span>;
+    }
+
+    const primaryDomain = getDomainFromUrl(primaryReference?.url);
+    const primaryLabel =
+        primaryReference?.title?.trim() || primaryDomain || primaryReference?.url || 'Source';
+
+    const additionalCount = Math.max(
+        references.length - (primaryReference ? 1 : 0),
+        0
+    );
 
     const handleOpen = (next: boolean) => setOpen(next);
     const handleMouseEnter = () => setOpen(true);
@@ -37,31 +62,46 @@ const CitationPopover = ({
                     onMouseLeave={handleMouseLeave}
                     onFocus={handleMouseEnter}
                     onBlur={handleMouseLeave}
-                    className="inline-flex items-center text-blue-600 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 rounded-sm"
-                    aria-label={`View sources for citation ${citationNumber}`}
+                    className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    aria-label={`View sources for ${primaryLabel}`}
                 >
-                    [{citationNumber}]
+                    <span className="max-w-[12ch] truncate">{primaryLabel}</span>
+                    {additionalCount > 0 && (
+                        <span className="text-[10px] font-semibold text-blue-500">+{additionalCount}</span>
+                    )}
                 </button>
             </PopoverTrigger>
             <PopoverContent
                 side="top"
                 align="center"
-                className="w-72 p-3 space-y-2"
+                className="w-80 space-y-3 p-4"
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sources</p>
-                <ul className="space-y-1">
+                <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
+                    <span>Sources</span>
+                    <span>
+                        {references.length}{' '}
+                        {references.length === 1 ? 'source' : 'sources'}
+                    </span>
+                </div>
+                <ul className="space-y-2">
                     {references.map((reference, index) => {
-                        const label = reference.title?.trim() || reference.url;
+                        const domain = getDomainFromUrl(reference.url);
+                        const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
                         const key = reference.url || `${reference.title}-${index}`;
                         const isActive = index === citationNumber - 1;
 
                         if (!reference.url) {
                             return (
-                                <li key={key} className="text-sm text-muted-foreground">
-                                    <span className="mr-1 text-xs text-muted-foreground">[{index + 1}]</span>
-                                    {label || `Source [${index + 1}]`}
+                                <li
+                                    key={key}
+                                    className={cn(
+                                        'rounded-md border border-border bg-muted/30 p-2 text-sm text-muted-foreground',
+                                        isActive ? 'border-blue-200 bg-blue-50 text-blue-700' : ''
+                                    )}
+                                >
+                                    {label}
                                 </li>
                             );
                         }
@@ -74,12 +114,14 @@ const CitationPopover = ({
                                     rel="noopener noreferrer"
                                     onClick={() => setOpen(false)}
                                     className={cn(
-                                        'flex items-start gap-2 text-sm text-blue-600 hover:underline',
-                                        isActive ? 'font-semibold text-blue-700' : ''
+                                        'flex flex-col gap-1 rounded-md border border-transparent p-2 transition-colors hover:border-blue-200 hover:bg-blue-50',
+                                        isActive ? 'border-blue-300 bg-blue-50' : 'bg-background'
                                     )}
                                 >
-                                    <span className="text-xs text-muted-foreground">[{index + 1}]</span>
-                                    <span className="text-left break-words">{label || `Source [${index + 1}]`}</span>
+                                    <span className="text-sm font-medium text-foreground">{label}</span>
+                                    {domain && (
+                                        <span className="text-xs text-muted-foreground">{domain}</span>
+                                    )}
                                 </a>
                             </li>
                         );
