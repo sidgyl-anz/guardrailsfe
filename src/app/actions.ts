@@ -81,6 +81,29 @@ const normalizeTitle = (rawTitle: string | undefined, fallbackSource: string): s
   return titleCase.length > 0 ? titleCase : DEFAULT_CONVERSATION_TITLE;
 };
 
+const generateTitleFromFirstWords = (text: string, wordLimit = 5): string => {
+  const words = text
+    .split(/\s+/)
+    .map(word => word.trim())
+    .filter(Boolean)
+    .slice(0, wordLimit);
+
+  if (words.length === 0) {
+    return DEFAULT_CONVERSATION_TITLE;
+  }
+
+  const titleCase = words
+    .map(word => {
+      if (word.toUpperCase() === word) {
+        return word;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+
+  return titleCase.length > 0 ? titleCase : DEFAULT_CONVERSATION_TITLE;
+};
+
 export async function generateConversationTitle(question: string): Promise<string> {
   const sanitizedQuestion = question.replace(/\s+/g, ' ').trim();
 
@@ -104,9 +127,21 @@ export async function generateConversationTitle(question: string): Promise<strin
   ];
 
   try {
-    const response = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
+    const model = 'googleai/gemini-1.5-flash';
+
+    console.info('[SERVER] Gemini title request', {
+      model,
       prompt,
+    });
+
+    const response = await ai.generate({
+      model,
+      prompt,
+    });
+
+    console.info('[SERVER] Gemini title response', {
+      output: response.output,
+      candidates: response.candidates,
     });
 
     const modelTitle =
@@ -116,6 +151,6 @@ export async function generateConversationTitle(question: string): Promise<strin
     return normalizeTitle(modelTitle, sanitizedQuestion);
   } catch (error) {
     console.error('[SERVER] Failed to generate conversation title with Gemini:', error);
-    return normalizeTitle(undefined, sanitizedQuestion);
+    return generateTitleFromFirstWords(sanitizedQuestion);
   }
 }
