@@ -62,12 +62,29 @@ const perplexitySonar = ai.defineModel(
       | undefined;
 
     const clientMessages = config?.clientMessages ?? [];
-    const messages = clientMessages
-      .map(message => ({
-        role: message.role === 'assistant' ? 'assistant' : 'user',
-        content: message.content ?? '',
-      }))
-      .filter(message => message.content.trim().length > 0);
+    const alternatingMessages = [] as {role: 'user' | 'assistant'; content: string}[];
+    for (const message of clientMessages) {
+      const role = message.role === 'assistant' ? 'assistant' : 'user';
+      const content = message.content ?? '';
+      if (content.trim().length === 0) {
+        continue;
+      }
+
+      if (role === 'assistant' && alternatingMessages.length === 0) {
+        // Drop leading assistant messages to satisfy Perplexity's alternating rule.
+        continue;
+      }
+
+      const lastMessage = alternatingMessages[alternatingMessages.length - 1];
+      if (lastMessage && lastMessage.role === role) {
+        // Replace the previous message of the same role so the latest message is kept.
+        alternatingMessages[alternatingMessages.length - 1] = {role, content};
+      } else {
+        alternatingMessages.push({role, content});
+      }
+    }
+
+    const messages = alternatingMessages;
 
     if (messages.length === 0) {
       console.error('[FLOW] No non-empty client messages were provided.');
