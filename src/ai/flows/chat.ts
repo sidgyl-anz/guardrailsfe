@@ -159,10 +159,11 @@ const perplexitySonar = ai.defineModel(
           },
         },
       ],
-      // Pass through usage and search_results in custom data
+      // Pass through usage, search_results, and resolved message content in custom data
       custom: {
         usage: data.usage,
         search_results: data.search_results,
+        assistant_message: message.content,
       },
     };
   }
@@ -195,11 +196,41 @@ export const safeHealthChat = ai.defineFlow(
     });
 
     const aiResponse = response.output;
-    const customData = response.custom;
+    const customData = response.custom ?? {};
+
+    const extractTextFromMessage = (message: any): string | undefined => {
+      if (!message || !Array.isArray(message.content)) {
+        return undefined;
+      }
+
+      for (const part of message.content) {
+        if (typeof part?.text === 'string' && part.text.trim().length > 0) {
+          return part.text;
+        }
+      }
+
+      return undefined;
+    };
+
+    const assistantText =
+      extractTextFromMessage(aiResponse) ??
+      extractTextFromMessage(response.candidates?.[0]?.message) ??
+      (typeof customData.assistant_message === 'string'
+        ? customData.assistant_message
+        : undefined);
+
+    if (!assistantText) {
+      console.error('[FLOW] Unable to determine assistant text from Perplexity response.', {
+        output: aiResponse,
+        candidates: response.candidates,
+        custom: customData,
+      });
+      throw new Error('Assistant response content was missing.');
+    }
 
     // Return a structured response similar to the original design
     return {
-      choices: [{ message: { content: aiResponse?.content[0].text, role: 'assistant' } }],
+      choices: [{message: {content: assistantText, role: 'assistant'}}],
       search_results: customData?.search_results,
     };
   }
