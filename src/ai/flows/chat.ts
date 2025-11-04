@@ -99,13 +99,23 @@ const perplexitySonar = ai.defineModel(
       body: JSON.stringify(requestBody),
     });
 
+    const rawResponseText = await response.text();
+    console.log('[FLOW] Raw response from Perplexity:', rawResponseText);
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[FLOW] Perplexity API Error:', errorText);
-      throw new Error(`Perplexity API responded with status ${response.status}: ${errorText}`);
+      console.error('[FLOW] Perplexity API Error:', rawResponseText);
+      throw new Error(
+        `Perplexity API responded with status ${response.status}: ${rawResponseText}`
+      );
     }
 
-    const data = await response.json();
+    let data: any;
+    try {
+      data = JSON.parse(rawResponseText);
+    } catch (parseError) {
+      console.error('[FLOW] Failed to parse Perplexity response as JSON:', parseError);
+      throw new Error('Failed to parse Perplexity response JSON.');
+    }
     console.log('[FLOW] Received response from Perplexity.');
 
 
