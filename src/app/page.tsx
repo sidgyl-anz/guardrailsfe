@@ -304,7 +304,7 @@ export default function Home() {
       <SidebarInset>
         <div className="flex h-screen flex-col bg-background text-foreground">
           <Collapsible asChild>
-            <>
+            <div className="flex h-full flex-col">
               <header className="flex flex-col gap-4 border-b bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
                 <HeaderContent />
               </header>
@@ -380,7 +380,7 @@ export default function Home() {
                   </div>
                 </form>
               </footer>
-            </>
+            </div>
           </Collapsible>
         </div>
       </SidebarInset>
