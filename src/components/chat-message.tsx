@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { User, Gem, Shield, ShieldAlert, Ban, HeartPulse } from 'lucide-react';
+import { User, Gem, Shield, ShieldAlert, Ban } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { type ChatMessage as ChatMessageType } from '@/lib/types';
@@ -139,7 +139,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
             {isUser && (
                 <Avatar className="h-10 w-10 border bg-blue-50 text-blue-600 order-2">
                     <AvatarFallback className="bg-transparent">
-                        <HeartPulse />
+                        <User />
                     </AvatarFallback>
                 </Avatar>
             )}
