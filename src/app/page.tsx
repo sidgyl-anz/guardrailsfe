@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, useCallback, FormEvent } from 'react';
 import { collection, serverTimestamp, query, orderBy, onSnapshot, doc } from 'firebase/firestore';
-import { Send, Code, LogIn, HeartPulse, Menu } from 'lucide-react';
+import { Send, Code, LogIn, HeartPulse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
@@ -37,18 +37,24 @@ type ApiTransaction = {
   response: any;
 };
 
+function SidebarAutoCollapse({ userId }: { userId?: string }) {
+  const { setOpen } = useSidebar();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [setOpen, userId]);
+
+  return null;
+}
+
 function HeaderContent() {
-  const { isMobile, toggleSidebar } = useSidebar();
   const { isUserLoading, user } = useUser();
 
   return (
     <>
       <div className="flex items-center gap-2">
-        {isMobile && user && (
-          <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-            <Menu />
-            <span className="sr-only">Toggle History</span>
-          </Button>
+        {user && (
+          <SidebarTrigger aria-label="Toggle conversation history" />
         )}
         <HeartPulse className="h-6 w-6 text-blue-500" />
         <h1 className="text-xl font-headline font-bold">Safe Health Chat</h1>
@@ -360,6 +366,7 @@ export default function Home() {
 
   return (
     <SidebarProvider defaultOpen={false}>
+      <SidebarAutoCollapse userId={user?.uid ?? undefined} />
       <Sidebar>
         <SidebarHeader>
           <SidebarTrigger />
