@@ -9,7 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {defineModel, Message} from 'genkit';
+import {Message} from 'genkit';
 import {z} from 'zod';
 
 // Define the schema for a single chat message from the client
@@ -31,7 +31,7 @@ const ChatOutputSchema = z.any();
 export type ChatOutput = z.infer<typeof ChatOutputSchema>;
 
 // Define a custom Genkit model for Perplexity
-const perplexitySonar = defineModel(
+const perplexitySonar = ai.defineModel(
   {
     name: 'perplexity/sonar-pro',
     label: 'Perplexity Sonar Pro',
