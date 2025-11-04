@@ -11,6 +11,85 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+const CitationPopover = ({
+    citationNumber,
+    references,
+}: {
+    citationNumber: number;
+    references?: ChatMessageType['references'];
+}) => {
+    const [open, setOpen] = React.useState(false);
+
+    if (!references || references.length === 0) {
+        return <span>[{citationNumber}]</span>;
+    }
+
+    const handleOpen = (next: boolean) => setOpen(next);
+    const handleMouseEnter = () => setOpen(true);
+    const handleMouseLeave = () => setOpen(false);
+
+    return (
+        <Popover open={open} onOpenChange={handleOpen}>
+            <PopoverTrigger asChild>
+                <button
+                    type="button"
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    onFocus={handleMouseEnter}
+                    onBlur={handleMouseLeave}
+                    className="inline-flex items-center text-blue-600 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 rounded-sm"
+                    aria-label={`View sources for citation ${citationNumber}`}
+                >
+                    [{citationNumber}]
+                </button>
+            </PopoverTrigger>
+            <PopoverContent
+                side="top"
+                align="center"
+                className="w-72 p-3 space-y-2"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+            >
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sources</p>
+                <ul className="space-y-1">
+                    {references.map((reference, index) => {
+                        const label = reference.title?.trim() || reference.url;
+                        const key = reference.url || `${reference.title}-${index}`;
+                        const isActive = index === citationNumber - 1;
+
+                        if (!reference.url) {
+                            return (
+                                <li key={key} className="text-sm text-muted-foreground">
+                                    <span className="mr-1 text-xs text-muted-foreground">[{index + 1}]</span>
+                                    {label || `Source [${index + 1}]`}
+                                </li>
+                            );
+                        }
+
+                        return (
+                            <li key={key}>
+                                <a
+                                    href={reference.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => setOpen(false)}
+                                    className={cn(
+                                        'flex items-start gap-2 text-sm text-blue-600 hover:underline',
+                                        isActive ? 'font-semibold text-blue-700' : ''
+                                    )}
+                                >
+                                    <span className="text-xs text-muted-foreground">[{index + 1}]</span>
+                                    <span className="text-left break-words">{label || `Source [${index + 1}]`}</span>
+                                </a>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </PopoverContent>
+        </Popover>
+    );
+};
+
 const MemoizedReactMarkdown = React.memo(({ content, references }: { content: string, references: ChatMessageType['references'] }) => {
     return (
         <ReactMarkdown
@@ -38,25 +117,15 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                             }
 
                             const citationNumber = parseInt(match[1], 10);
-                            const reference = references?.[citationNumber - 1];
+                            const hasReferences = references && references.length >= citationNumber;
 
-                            if (reference?.url) {
+                            if (hasReferences) {
                                 parts.push(
-                                    <Popover key={`${match.index}-${index}`}>
-                                        <PopoverTrigger asChild>
-                                            <a
-                                                href={reference.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-600 font-semibold cursor-pointer hover:underline"
-                                            >
-                                                [{citationNumber}]
-                                            </a>
-                                        </PopoverTrigger>
-                                        <PopoverContent side="top" className="max-w-xs break-words text-sm p-2 bg-background border rounded-lg shadow-lg">
-                                            {reference.title || `Source [${citationNumber}]`}
-                                        </PopoverContent>
-                                    </Popover>
+                                    <CitationPopover
+                                        key={`${match.index}-${index}`}
+                                        citationNumber={citationNumber}
+                                        references={references}
+                                    />
                                 );
                             } else {
                                 parts.push(match[0]); // If no valid link found, render as text
@@ -65,7 +134,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                         }
 
                         const remainingText = child.substring(lastIndex);
-if (remainingText) {
+                        if (remainingText) {
                             parts.push(remainingText);
                         }
                         
