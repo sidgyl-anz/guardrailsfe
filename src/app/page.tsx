@@ -111,10 +111,19 @@ export default function Home() {
       return await response.json();
     } catch (error: any) {
       console.error("Guardrails check failed:", error);
+      const rawErrorMessage = error?.message || 'Failed to get a response from the guardrails service.';
+      const normalizedMessage = rawErrorMessage.toLowerCase();
+      const isTimeoutError =
+        normalizedMessage.includes('deadline exceeded') ||
+        normalizedMessage.includes('timed out') ||
+        (normalizedMessage.includes('dkr') && normalizedMessage.includes('timeout'));
+
       toast({
         variant: 'destructive',
-        title: 'Guardrail Service Error',
-        description: `Could not connect to the safety guardrail service: ${error.message}`,
+        title: isTimeoutError ? 'Guardrail Service Unresponsive' : 'Guardrail Service Error',
+        description: isTimeoutError
+          ? 'Guardrails service is starting. Please wait and retry.'
+          : `Could not connect to the safety guardrail service: ${error.message}`,
       });
       return null;
     }
