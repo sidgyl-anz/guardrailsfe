@@ -45,8 +45,10 @@ const perplexitySonar = defineModel(
     // We don't need to specify config, as we'll pass it in the flow.
   },
   async (request, streamingCallback) => {
+    console.log('[FLOW] Perplexity model invoked.');
     const apiKey = process.env.PERPLEXITY_API_KEY;
     if (!apiKey) {
+      console.error('[FLOW] FATAL: PERPLEXITY_API_KEY is not defined.');
       throw new Error('PERPLEXITY_API_KEY is not defined in environment variables.');
     }
 
@@ -69,6 +71,8 @@ const perplexitySonar = defineModel(
       ...(searchDomainFilter && searchDomainFilter.length > 0 && { search_domain_filter: searchDomainFilter }),
     };
 
+    console.log('[FLOW] Sending request to Perplexity:', JSON.stringify(requestBody, null, 2));
+
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
@@ -80,11 +84,14 @@ const perplexitySonar = defineModel(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `Perplexity API responded with status ${response.status}`);
+      const errorText = await response.text();
+      console.error('[FLOW] Perplexity API Error:', errorText);
+      throw new Error(`Perplexity API responded with status ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('[FLOW] Received response from Perplexity.');
+
 
     // Perplexity provides choices, we'll take the first one.
     const choice = data.choices[0];

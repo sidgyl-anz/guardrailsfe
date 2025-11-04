@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, FormEvent } from 'react';
 import { collection, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { Send, Code, LogIn, HeartPulse, Menu } from 'lucide-react';
+import { Send, Code, LogIn, HeartPulse, Menu, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
@@ -89,9 +89,12 @@ export default function Home() {
     if (!useGuardrails) return { is_safe: true, reason: 'guardrails_disabled' };
 
     try {
-      return await callGuardrails(data);
+      console.log('[CLIENT] Calling guardrails with:', data);
+      const result = await callGuardrails(data);
+      console.log('[CLIENT] Guardrails result:', result);
+      return result;
     } catch (error: any) {
-      console.error("Guardrails check failed:", error);
+      console.error("[CLIENT] Guardrails check failed:", error);
       const rawErrorMessage = error?.message || 'Failed to get a response from the guardrails service.';
       const normalizedMessage = rawErrorMessage.toLowerCase();
       const isTimeoutError =
@@ -217,18 +220,24 @@ export default function Home() {
     };
 
     try {
+      console.log('[CLIENT] Sending request to /api/chat with body:', JSON.stringify(requestBody, null, 2));
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
 
+      console.log('[CLIENT] Received response from /api/chat with status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || `API responded with status ${response.status}`);
+        const errorText = await response.text();
+        console.error('[CLIENT] API Error Response Text:', errorText);
+        throw new Error(`API responded with status ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('[CLIENT] Successfully parsed JSON response from /api/chat');
       setLastApiTransaction({ request: requestBody, response: data });
 
       let aiResponseContent = data.choices[0].message.content;
@@ -257,17 +266,23 @@ export default function Home() {
     } catch (error: any) {
       const rawErrorMessage = error?.message || 'Failed to get a response from the AI.';
       const normalizedMessage = rawErrorMessage.toLowerCase();
+      // Updated error check to handle specific client-side parsing error
+      const isJsonError = rawErrorMessage.includes('invalid json');
       const isTimeoutError =
-        normalizedMessage.includes('deadline exceeded') ||
-        normalizedMessage.includes('timed out') ||
-        (normalizedMessage.includes('dkr') && normalizedMessage.includes('timeout'));
+        !isJsonError && (
+            normalizedMessage.includes('deadline exceeded') ||
+            normalizedMessage.includes('timed out') ||
+            (normalizedMessage.includes('dkr') && normalizedMessage.includes('timeout'))
+        );
 
       toast({
         variant: 'destructive',
-        title: isTimeoutError ? 'Request Timed Out' : 'API Error',
-        description: isTimeoutError
-          ? 'The AI service took too long to respond. Please try again in a few moments.'
-          : rawErrorMessage,
+        title: isJsonError ? 'API Error' : (isTimeoutError ? 'Request Timed Out' : 'API Error'),
+        description: isJsonError 
+          ? `Unexpected response from server. Check console for details.`
+          : (isTimeoutError
+            ? 'The AI service took too long to respond. Please try again in a few moments.'
+            : rawErrorMessage),
       });
       setLastApiTransaction({ request: requestBody, response: { error: rawErrorMessage } });
     } finally {
@@ -341,7 +356,9 @@ export default function Home() {
                     ))
                   )}
                   {isLoading && (
-                    <LoadingMessage />
+                     <div className="flex items-start gap-4">
+                        <LoadingMessage />
+                    </div>
                   )}
                 </div>
               </main>
