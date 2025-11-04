@@ -206,11 +206,14 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         variant="ghost"
                         size="icon"
                         className={cn(
-                            'ml-2 h-7 w-7 self-start opacity-0 group-hover:opacity-100'
+                            'ml-2 h-7 w-7 self-start transition-colors',
+                            message.isBlocked
+                                ? 'text-red-600 hover:text-red-700 hover:bg-red-50 focus-visible:ring-red-500'
+                                : 'text-green-600 hover:text-green-700 hover:bg-green-50 focus-visible:ring-green-500'
                         )}
                         onClick={onGuardrailClick}
                     >
-                        {message.isBlocked ? <ShieldAlert className="h-5 w-5 text-muted-foreground" /> : <Shield className="h-5 w-5 text-muted-foreground/70" />}
+                        {message.isBlocked ? <ShieldAlert className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
                         <span className="sr-only">View Guardrail Details</span>
                     </Button>
                 )}
