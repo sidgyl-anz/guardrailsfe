@@ -35,6 +35,7 @@ const chatFlow = ai.defineFlow(
     name: 'safeHealthChatFlow',
     inputSchema: ChatInputSchema,
     outputSchema: ChatOutputSchema,
+    
   },
   async (input) => {
     const apiKey = process.env.PERPLEXITY_API_KEY;
@@ -45,7 +46,9 @@ const chatFlow = ai.defineFlow(
 
     const requestBody = {
       model: 'sonar-pro',
-      ...input,
+      messages: input.messages,
+      ...(input.system && { system_prompt: input.system }),
+      ...(input.search_domain_filter && input.search_domain_filter.length > 0 && { search_domain_filter: input.search_domain_filter }),
     };
 
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
