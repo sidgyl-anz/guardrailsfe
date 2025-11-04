@@ -156,23 +156,34 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     const isUser = message.role === 'user';
     const hasGuardrailInfo = !!message.guardrailResult;
 
-    return (
-        <div className={cn('group flex items-start gap-4', isUser ? 'justify-end' : '')}>
-            {!isUser && (
-                 <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
-                    <AvatarFallback className="bg-transparent text-blue-500">
-                        <HeartPulse />
-                    </AvatarFallback>
-                </Avatar>
+    const avatar = (
+        <Avatar
+            className={cn(
+                'h-10 w-10 border',
+                isUser ? 'bg-blue-50 text-blue-600' : 'bg-primary text-primary-foreground'
             )}
+        >
+            <AvatarFallback
+                className={cn(
+                    'bg-transparent',
+                    isUser ? 'text-blue-600' : 'text-blue-500'
+                )}
+            >
+                {isUser ? <User /> : <HeartPulse />}
+            </AvatarFallback>
+        </Avatar>
+    );
 
-            <div className={cn("relative flex items-center max-w-full", isUser ? 'justify-end' : 'justify-start')}>
-                 <div
+    return (
+        <div className="group flex items-start gap-4">
+            {avatar}
+
+            <div className="relative flex items-start max-w-full">
+                <div
                     className={cn(
-                        'max-w-prose rounded-lg p-4 shadow-sm',
-                         isUser ? 'bg-card' : 'bg-primary',
-                        message.isBlocked && 'bg-muted border',
-                        isUser ? 'order-1' : 'order-2'
+                        'max-w-prose rounded-lg p-4 shadow-sm text-left',
+                        isUser ? 'bg-card' : 'bg-primary',
+                        message.isBlocked && 'bg-muted border'
                     )}
                 >
                     {message.isBlocked && (
@@ -181,10 +192,12 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                             <span>This content was blocked by the safety filter.</span>
                         </div>
                     )}
-                    <div className={cn(
-                        "font-body text-base leading-relaxed text-foreground",
-                        message.isBlocked ? "text-muted-foreground italic" : ""
-                    )}>
+                    <div
+                        className={cn(
+                            'font-body text-base leading-relaxed text-foreground',
+                            message.isBlocked ? 'text-muted-foreground italic' : ''
+                        )}
+                    >
                         <MemoizedReactMarkdown content={message.content} references={message.references || []} />
                     </div>
                 </div>
@@ -193,8 +206,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         variant="ghost"
                         size="icon"
                         className={cn(
-                            "h-7 w-7 opacity-0 group-hover:opacity-100",
-                             isUser ? "order-2 ml-2" : "order-1 mr-2"
+                            'ml-2 h-7 w-7 self-start opacity-0 group-hover:opacity-100'
                         )}
                         onClick={onGuardrailClick}
                     >
@@ -203,14 +215,6 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                     </Button>
                 )}
             </div>
-
-            {isUser && (
-                <Avatar className="h-10 w-10 border bg-blue-50 text-blue-600">
-                    <AvatarFallback className="bg-transparent">
-                        <User />
-                    </AvatarFallback>
-                </Avatar>
-            )}
         </div>
     );
 }
