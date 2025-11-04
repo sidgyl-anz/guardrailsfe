@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileoverview A flow that interacts with the Perplexity API for chat completions.
@@ -8,47 +7,66 @@
  * securely on the server-side.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'zod';
+import {ai} from '@/ai/genkit';
+import {defineModel, Message, Role} from 'genkit';
+import {z} from 'zod';
+import {googleAI} from '@genkit-ai/googleai';
 
-// Define the schema for a single chat message
-const ChatMessageSchema = z.object({
-  role: z.enum(['user', 'assistant', 'system']),
+// Define the schema for a single chat message from the client
+const ClientMessageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
   content: z.string(),
 });
 
 // Define the input schema for the chat flow
 const ChatInputSchema = z.object({
   system: z.string().optional(),
-  messages: z.array(ChatMessageSchema),
+  messages: z.array(ClientMessageSchema),
   search_domain_filter: z.array(z.string()).optional(),
 });
 export type ChatInput = z.infer<typeof ChatInputSchema>;
 
-// Define the output schema, which can be any JSON for flexibility
+// Define the output schema
 const ChatOutputSchema = z.any();
 export type ChatOutput = z.infer<typeof ChatOutputSchema>;
 
-// Define the Genkit flow
-const chatFlow = ai.defineFlow(
+// Define a custom Genkit model for Perplexity
+const perplexitySonar = defineModel(
   {
-    name: 'safeHealthChatFlow',
-    inputSchema: ChatInputSchema,
-    outputSchema: ChatOutputSchema,
-    
+    name: 'perplexity/sonar-pro',
+    label: 'Perplexity Sonar Pro',
+    supports: {
+      generate: true,
+      multiturn: true,
+      tools: false,
+      media: false,
+      systemRole: true,
+    },
+    // We don't need to specify config, as we'll pass it in the flow.
   },
-  async (input) => {
+  async (request, streamingCallback) => {
     const apiKey = process.env.PERPLEXITY_API_KEY;
-
     if (!apiKey) {
       throw new Error('PERPLEXITY_API_KEY is not defined in environment variables.');
     }
 
+    const systemPrompt = request.system;
+    const messages = request.messages.map(m => ({
+      role: m.role === 'model' ? 'assistant' : m.role,
+      content: m.content.map(p => p.text).join(''),
+    }));
+
+    if (systemPrompt) {
+      messages.unshift({role: 'system', content: systemPrompt});
+    }
+    
+    // Extract search_domain_filter from custom config
+    const searchDomainFilter = (request.config as any)?.search_domain_filter;
+
     const requestBody = {
       model: 'sonar-pro',
-      messages: input.messages,
-      ...(input.system && { system_prompt: input.system }),
-      ...(input.search_domain_filter && input.search_domain_filter.length > 0 && { search_domain_filter: input.search_domain_filter }),
+      messages: messages,
+      ...(searchDomainFilter && searchDomainFilter.length > 0 && { search_domain_filter: searchDomainFilter }),
     };
 
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -67,15 +85,63 @@ const chatFlow = ai.defineFlow(
     }
 
     const data = await response.json();
-    // Pass both choices and search_results back to the client
+
+    // Perplexity provides choices, we'll take the first one.
+    const choice = data.choices[0];
+    const message = choice.message;
+
     return {
-      choices: data.choices,
-      search_results: data.search_results,
+      candidates: [
+        {
+          index: 0,
+          finishReason: choice.finish_reason,
+          message: {
+            role: 'model',
+            content: [{text: message.content}],
+          },
+        },
+      ],
+      // Pass through usage and search_results in custom data
+      custom: {
+        usage: data.usage,
+        search_results: data.search_results,
+      },
     };
   }
 );
 
-// Export a wrapper function to be used in the application
-export async function safeHealthChat(input: ChatInput): Promise<ChatOutput> {
-  return await chatFlow(input);
-}
+
+// Define the Genkit flow using the Perplexity model
+export const safeHealthChat = ai.defineFlow(
+  {
+    name: 'safeHealthChatFlow',
+    inputSchema: ChatInputSchema,
+    outputSchema: ChatOutputSchema,
+  },
+  async (input) => {
+    // Transform input messages to Genkit's Message format
+    const history: Message[] = input.messages.map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      content: [{ text: msg.content }],
+    }));
+
+    const response = await ai.generate({
+      model: perplexitySonar, // Use our custom Perplexity model
+      prompt: history,
+      config: {
+        // Pass system prompt and search domains through the config
+        system: input.system,
+        search_domain_filter: input.search_domain_filter,
+      },
+    });
+
+    const aiResponse = response.output;
+    const customData = response.custom;
+
+    // Return a structured response similar to the original design
+    return {
+      choices: [{ message: { content: aiResponse?.content[0].text, role: 'assistant' } }],
+      search_results: customData?.search_results,
+    };
+  }
+);
