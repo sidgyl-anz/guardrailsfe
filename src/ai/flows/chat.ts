@@ -25,12 +25,15 @@ const ChatInputSchema = z.object({
   search_domain_filter: z.array(z.string()).optional(),
 });
 export type ChatInput = z.infer<typeof ChatInputSchema>;
+type ClientMessage = z.infer<typeof ClientMessageSchema>;
 
 // Define the output schema
 const ChatOutputSchema = z.any();
 export type ChatOutput = z.infer<typeof ChatOutputSchema>;
 
 // Define a custom Genkit model for Perplexity
+type PerplexityMessage = ClientMessage | {role: 'system'; content: string};
+
 const perplexitySonar = ai.defineModel(
   {
     name: 'perplexity/sonar-pro',
@@ -52,17 +55,21 @@ const perplexitySonar = ai.defineModel(
       throw new Error('PERPLEXITY_API_KEY is not defined in environment variables.');
     }
 
-    const systemPrompt = request.system;
-
     const config = request.config as
       | {
-          clientMessages?: {role: 'user' | 'assistant'; content: string}[];
+          system?: string;
+          clientMessages?: ClientMessage[];
           search_domain_filter?: string[];
         }
       | undefined;
 
+    const systemPrompt =
+      typeof config?.system === 'string' && config.system.trim().length > 0
+        ? config.system
+        : undefined;
+
     const clientMessages = config?.clientMessages ?? [];
-    const alternatingMessages = [] as {role: 'user' | 'assistant'; content: string}[];
+    const alternatingMessages: ClientMessage[] = [];
     for (const message of clientMessages) {
       const role = message.role === 'assistant' ? 'assistant' : 'user';
       const content = message.content ?? '';
@@ -84,7 +91,10 @@ const perplexitySonar = ai.defineModel(
       }
     }
 
-    const messages = alternatingMessages;
+    const messages: PerplexityMessage[] = alternatingMessages.map(message => ({
+      role: message.role,
+      content: message.content,
+    }));
 
     if (messages.length === 0) {
       console.error('[FLOW] No non-empty client messages were provided.');
