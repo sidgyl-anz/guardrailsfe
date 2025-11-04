@@ -97,11 +97,25 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                 </Avatar>
             )}
 
-            <div className={cn("relative flex-1 max-w-prose", isUser ? 'order-1' : 'order-2')}>
+            <div className={cn("relative flex items-center", isUser ? 'justify-end' : 'justify-start')}>
+                {hasGuardrailInfo && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                            "h-7 w-7 opacity-0 group-hover:opacity-100",
+                            isUser ? "order-1 mr-2" : "order-2 ml-2"
+                        )}
+                        onClick={onGuardrailClick}
+                    >
+                        {message.isBlocked ? <ShieldAlert className="h-5 w-5 text-muted-foreground" /> : <Shield className="h-5 w-5 text-muted-foreground/70" />}
+                        <span className="sr-only">View Guardrail Details</span>
+                    </Button>
+                )}
                 <div
                     className={cn(
-                        'rounded-lg p-4 shadow-sm',
-                         isUser ? 'bg-card' : 'bg-primary',
+                        'max-w-prose rounded-lg p-4 shadow-sm',
+                         isUser ? 'bg-card order-2' : 'bg-primary order-1',
                         message.isBlocked && 'bg-muted border'
                     )}
                 >
@@ -117,22 +131,6 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                     )}>
                         <MemoizedReactMarkdown content={message.content} references={message.references || []} />
                     </div>
-                </div>
-                 <div className={cn(
-                    "absolute top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 flex items-center",
-                     isUser ? "-left-10 order-1" : "right-full mr-2 order-2"
-                )}>
-                    {hasGuardrailInfo && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={onGuardrailClick}
-                        >
-                            {message.isBlocked ? <ShieldAlert className="h-5 w-5 text-muted-foreground" /> : <Shield className="h-5 w-5 text-muted-foreground/70" />}
-                            <span className="sr-only">View Guardrail Details</span>
-                        </Button>
-                    )}
                 </div>
             </div>
 
