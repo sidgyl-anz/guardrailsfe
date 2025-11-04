@@ -53,17 +53,33 @@ const perplexitySonar = ai.defineModel(
     }
 
     const systemPrompt = request.system;
-    const messages = request.messages.map(m => ({
-      role: m.role === 'model' ? 'assistant' : m.role,
-      content: m.content.map(p => p.text).join(''),
-    }));
+
+    const config = request.config as
+      | {
+          clientMessages?: {role: 'user' | 'assistant'; content: string}[];
+          search_domain_filter?: string[];
+        }
+      | undefined;
+
+    const clientMessages = config?.clientMessages ?? [];
+    const messages = clientMessages
+      .map(message => ({
+        role: message.role === 'assistant' ? 'assistant' : 'user',
+        content: message.content ?? '',
+      }))
+      .filter(message => message.content.trim().length > 0);
+
+    if (messages.length === 0) {
+      console.error('[FLOW] No non-empty client messages were provided.');
+      throw new Error('At least one non-empty user message is required.');
+    }
 
     if (systemPrompt) {
       messages.unshift({role: 'system', content: systemPrompt});
     }
     
     // Extract search_domain_filter from custom config
-    const searchDomainFilter = (request.config as any)?.search_domain_filter;
+    const searchDomainFilter = config?.search_domain_filter;
 
     const requestBody = {
       model: 'sonar-pro',
@@ -136,8 +152,9 @@ export const safeHealthChat = ai.defineFlow(
       model: perplexitySonar, // Use our custom Perplexity model
       prompt: history,
       config: {
-        // Pass system prompt and search domains through the config
+        // Pass system prompt, client messages, and search domains through the config
         system: input.system,
+        clientMessages: input.messages,
         search_domain_filter: input.search_domain_filter,
       },
     });
