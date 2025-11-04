@@ -8,9 +8,8 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {defineModel, Message, Role} from 'genkit';
+import {defineModel, Message} from 'genkit';
 import {z} from 'zod';
-import {googleAI} from '@genkit-ai/googleai';
 
 // Define the schema for a single chat message from the client
 const ClientMessageSchema = z.object({
