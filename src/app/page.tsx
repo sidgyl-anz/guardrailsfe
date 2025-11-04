@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useRef, useEffect, FormEvent } from 'react';
-import { collection, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { Send, Code, LogIn, HeartPulse, Menu, User } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, FormEvent } from 'react';
+import { collection, serverTimestamp, query, orderBy, onSnapshot, doc } from 'firebase/firestore';
+import { Send, Code, LogIn, HeartPulse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/hooks/use-settings';
@@ -16,7 +16,7 @@ import { GuardrailResultDialog } from '@/components/guardrail-result-dialog';
 import { AuthDialog } from '@/components/auth-dialog';
 import { UserMenu } from '@/components/user-menu';
 import { useFirestore, useUser, useMemoFirebase, useCollection } from '@/firebase';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DebugView } from '@/components/debug-view';
 import { cn } from '@/lib/utils';
@@ -29,25 +29,32 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { callGuardrails } from './actions';
+import { callGuardrails, generateConversationTitle } from './actions';
+import { DEFAULT_CONVERSATION_TITLE } from '@/lib/conversation-titles';
 
 type ApiTransaction = {
   request: any;
   response: any;
 };
 
+function SidebarAutoCollapse({ userId }: { userId?: string }) {
+  const { setOpen } = useSidebar();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [setOpen, userId]);
+
+  return null;
+}
+
 function HeaderContent() {
-  const { isMobile, toggleSidebar } = useSidebar();
   const { isUserLoading, user } = useUser();
 
   return (
     <>
       <div className="flex items-center gap-2">
-        {isMobile && user && (
-          <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-            <Menu />
-            <span className="sr-only">Toggle History</span>
-          </Button>
+        {user && (
+          <SidebarTrigger aria-label="Toggle conversation history" />
         )}
         <HeartPulse className="h-6 w-6 text-blue-500" />
         <h1 className="text-xl font-headline font-bold">Safe Health Chat</h1>
@@ -78,12 +85,14 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedGuardrailResult, setSelectedGuardrailResult] = useState<any>(null);
   const [lastApiTransaction, setLastApiTransaction] = useState<ApiTransaction | null>(null);
+  const [hasInitializedConversation, setHasInitializedConversation] = useState(false);
   
   const { searchDomains, systemPrompt, useGuardrails, isSettingsReady } = useSettings();
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const viewportRef = useRef<HTMLDivElement>(null);
+  const creatingConversationRef = useRef(false);
   
   const handleGuardrailCheck = async (data: { user_prompt?: string; llm_response?: string }) => {
     if (!useGuardrails) return { is_safe: true, reason: 'guardrails_disabled' };
@@ -113,41 +122,79 @@ export default function Home() {
     }
   };
 
-  const createNewConversation = async () => {
-    if (!user || !firestore) return;
+  const createNewConversation = useCallback(async () => {
+    if (!user || !firestore || creatingConversationRef.current) return null;
+    creatingConversationRef.current = true;
     const newConversationData: Omit<Conversation, 'id'> = {
-      title: 'New Conversation',
+      title: DEFAULT_CONVERSATION_TITLE,
       createdAt: serverTimestamp(),
     };
     const conversationsRef = collection(firestore, 'users', user.uid, 'conversations');
-    const conversationRef = await addDocumentNonBlocking(conversationsRef, newConversationData);
-    if(conversationRef) {
-        setActiveConversation({ id: conversationRef.id, ...newConversationData });
+    try {
+      const conversationRef = await addDocumentNonBlocking(conversationsRef, newConversationData);
+      if (conversationRef) {
+        const createdConversation = { id: conversationRef.id, ...newConversationData };
+        setActiveConversation(createdConversation);
+        return createdConversation;
+      }
+    } finally {
+      creatingConversationRef.current = false;
     }
-  };
+    return null;
+  }, [firestore, user]);
 
   // Auto-select or create a conversation on login
   useEffect(() => {
-    if (user && !activeConversation && firestore) {
-      const conversationsRef = collection(firestore, 'users', user.uid, 'conversations');
-      const q = query(conversationsRef, orderBy('createdAt', 'desc'));
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-          const latestConvo = snapshot.docs[0];
-          setActiveConversation({ id: latestConvo.id, ...(latestConvo.data() as Omit<Conversation, 'id'>) });
-        } else {
-          createNewConversation();
-        }
-      }, (error) => {
-        console.error("Error fetching conversations:", error);
-        // Let other UI parts handle permission errors.
-      });
-      return () => unsubscribe();
-    } else if (!user) {
+    if (!user) {
       setActiveConversation(null);
     }
-  }, [user, firestore]);
+    creatingConversationRef.current = false;
+    setHasInitializedConversation(false);
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (user && firestore && !hasInitializedConversation) {
+      setHasInitializedConversation(true);
+      void createNewConversation();
+    }
+  }, [user, firestore, hasInitializedConversation, createNewConversation]);
+
+  useEffect(() => {
+    if (!user || !firestore) {
+      return;
+    }
+
+    const conversationsRef = collection(firestore, 'users', user.uid, 'conversations');
+    const q = query(conversationsRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        if (snapshot.empty) {
+          void createNewConversation();
+          return;
+        }
+
+        const latestConvo = snapshot.docs[0];
+        const latestData = { id: latestConvo.id, ...(latestConvo.data() as Omit<Conversation, 'id'>) };
+
+        if (!activeConversation) {
+          setActiveConversation(latestData);
+          return;
+        }
+
+        const currentExists = snapshot.docs.find((docSnapshot) => docSnapshot.id === activeConversation.id);
+        if (!currentExists) {
+          setActiveConversation(latestData);
+        }
+      },
+      (error) => {
+        console.error('Error fetching conversations:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, firestore, activeConversation?.id, createNewConversation]);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!user || !activeConversation || !firestore) return null;
@@ -179,7 +226,8 @@ export default function Home() {
       return;
     }
 
-    const messagesRef = collection(firestore, 'users', user.uid, 'conversations', currentConversationId, 'messages');
+    const conversationDocRef = doc(firestore, 'users', user.uid, 'conversations', currentConversationId);
+    const messagesRef = collection(conversationDocRef, 'messages');
 
     const inputGuardrailResult = await handleGuardrailCheck({ user_prompt: input });
     if (inputGuardrailResult === null) {
@@ -198,6 +246,30 @@ export default function Home() {
       isBlocked: isInputBlocked,
     };
     addDocumentNonBlocking(messagesRef, userMessage);
+
+    if (
+      !isInputBlocked &&
+      (activeConversation?.title?.trim() === '' || activeConversation?.title === DEFAULT_CONVERSATION_TITLE)
+    ) {
+      const sanitizedForTitle = userMessageContent;
+      void (async () => {
+        try {
+          const generatedTitle = await generateConversationTitle(sanitizedForTitle);
+          const normalizedTitle = generatedTitle.trim();
+          if (normalizedTitle && normalizedTitle !== activeConversation?.title) {
+            updateDocumentNonBlocking(conversationDocRef, { title: normalizedTitle });
+            setActiveConversation((previous) => {
+              if (!previous || previous.id !== currentConversationId) {
+                return previous;
+              }
+              return { ...previous, title: normalizedTitle };
+            });
+          }
+        } catch (error) {
+          console.error('[CLIENT] Failed to generate conversation title:', error);
+        }
+      })();
+    }
 
     if (isInputBlocked) {
       setLastApiTransaction({ request: {user_prompt: input}, response: inputGuardrailResult });
@@ -293,7 +365,8 @@ export default function Home() {
   const isChatDisabled = isLoading || !user;
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
+      <SidebarAutoCollapse userId={user?.uid ?? undefined} />
       <Sidebar>
         <SidebarHeader>
           <SidebarTrigger />

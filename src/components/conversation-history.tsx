@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Plus, MessageSquare, Trash2, MoreHorizontal } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, writeBatch } from 'firebase/firestore';
 import { type Conversation } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -31,10 +32,12 @@ import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { formatDistanceToNow } from 'date-fns';
 
 
+type CreateConversationFn = () => Promise<Conversation | null> | Conversation | null | void;
+
 interface ConversationHistoryProps {
   activeConversation: Conversation | null;
   onConversationSelect: (conversation: Conversation) => void;
-  onCreateNew: () => void;
+  onCreateNew: CreateConversationFn;
 }
 
 function ConversationItem({ conversation, isActive, onSelect, onDelete }: { conversation: Conversation; isActive: boolean; onSelect: () => void; onDelete: () => void; }) {
@@ -54,27 +57,57 @@ function ConversationItem({ conversation, isActive, onSelect, onDelete }: { conv
   return (
     <>
       <div
+        role="button"
+        tabIndex={0}
+        aria-current={isActive ? 'true' : undefined}
         className={cn(
-          "group relative flex w-full cursor-pointer items-center justify-between rounded-md p-2 text-sm",
-          isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'hover:bg-sidebar-accent/80'
+          'group relative flex w-full cursor-pointer items-center justify-between rounded-md p-2 text-sm outline-none transition',
+          isActive
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-accent-foreground/40'
+            : 'hover:bg-sidebar-accent/80 focus-visible:ring-1 focus-visible:ring-sidebar-border'
         )}
         onClick={onSelect}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
       >
         <div className="flex items-center gap-2 truncate">
           <MessageSquare className="h-4 w-4 shrink-0" />
           <span className="truncate">{conversation.title}</span>
         </div>
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-           <span className={cn("text-xs text-muted-foreground/80", isActive && "text-sidebar-accent-foreground/80")}>{getRelativeTime()}</span>
+        <div
+          className={cn(
+            'flex items-center gap-1 text-xs text-muted-foreground/80 transition-opacity duration-150',
+            isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'
+          )}
+        >
+          <span className={cn('hidden sm:inline', isActive && 'text-sidebar-accent-foreground/80')}>
+            {getRelativeTime()}
+          </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
                 <MoreHorizontal className="h-4 w-4" />
-                <span className="sr-only">More options</span>
+                <span className="sr-only">Conversation options</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)} className="text-red-500">
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setIsDeleteDialogOpen(true);
+                }}
+                className="text-red-500 focus:text-red-500"
+              >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>
@@ -92,7 +125,14 @@ function ConversationItem({ conversation, isActive, onSelect, onDelete }: { conv
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                setIsDeleteDialogOpen(false);
+                onDelete();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -119,6 +159,8 @@ export function ConversationHistory({
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const conversationsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -126,6 +168,8 @@ export function ConversationHistory({
   }, [user, firestore]);
   
   const { data: conversations, isLoading } = useCollection<Conversation>(conversationsQuery);
+
+  const closeDeleteAllDialog = () => setIsDeleteAllDialogOpen(false);
 
   const handleDeleteConversation = async (conversationId: string) => {
     if (!user || !firestore) return;
@@ -143,7 +187,7 @@ export function ConversationHistory({
         if(firstConversation) {
             onConversationSelect(firstConversation);
         } else {
-            onCreateNew();
+            void onCreateNew();
         }
       }
     } catch (error: any) {
@@ -154,7 +198,43 @@ export function ConversationHistory({
       });
     }
   };
-  
+
+  const handleDeleteAllConversations = async () => {
+    if (!user || !firestore || !conversations || conversations.length === 0) {
+      closeDeleteAllDialog();
+      return;
+    }
+
+    setIsBulkDeleting(true);
+
+    try {
+      const batch = writeBatch(firestore);
+
+      conversations.forEach((conversation) => {
+        const conversationRef = doc(firestore, 'users', user.uid, 'conversations', conversation.id);
+        batch.delete(conversationRef);
+      });
+
+      await batch.commit();
+
+      toast({
+        title: 'History Cleared',
+        description: 'All conversations have been deleted.',
+      });
+
+      void onCreateNew();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error Deleting Conversations',
+        description: error?.message ?? 'Unable to delete conversation history.',
+      });
+    } finally {
+      setIsBulkDeleting(false);
+      closeDeleteAllDialog();
+    }
+  };
+
 
   if (!user) {
     return (
@@ -165,36 +245,103 @@ export function ConversationHistory({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-sidebar-border p-2">
-        <h2 className="px-2 text-lg font-headline font-semibold tracking-tight">History</h2>
-        <Button variant="ghost" size="icon" onClick={onCreateNew}>
-          <Plus className="h-4 w-4" />
-          <span className="sr-only">New Chat</span>
-        </Button>
+    <>
+      <div className="flex h-full flex-col">
+        <div className="flex items-center justify-between border-b border-sidebar-border p-2">
+          <div className="flex items-center gap-2 px-2">
+            <h2 className="text-lg font-headline font-semibold tracking-tight">History</h2>
+            {conversations && conversations.length > 0 && (
+              <span className="text-xs text-muted-foreground/70">{conversations.length}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => void onCreateNew()}>
+              <Plus className="h-4 w-4" />
+              <span className="sr-only">New Chat</span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">History options</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    void onCreateNew();
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Chat
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={!conversations?.length || isBulkDeleting}
+                  className="text-red-500 focus:text-red-500"
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    if (!conversations?.length) {
+                      return;
+                    }
+                    setIsDeleteAllDialogOpen(true);
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear All
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="space-y-1 p-2">
+            {isLoading ? (
+              <ConversationSkeleton />
+            ) : conversations && conversations.length > 0 ? (
+              conversations.map((convo) => (
+                <ConversationItem
+                  key={convo.id}
+                  conversation={convo}
+                  isActive={activeConversation?.id === convo.id}
+                  onSelect={() => onConversationSelect(convo)}
+                  onDelete={() => handleDeleteConversation(convo.id)}
+                />
+              ))
+            ) : (
+              <div className="p-4 text-center text-sm text-sidebar-foreground/80">
+                No conversations yet.
+              </div>
+            )}
+          </div>
+        </ScrollArea>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="space-y-1 p-2">
-          {isLoading ? (
-            <ConversationSkeleton />
-          ) : conversations && conversations.length > 0 ? (
-            conversations.map((convo) => (
-              <ConversationItem
-                key={convo.id}
-                conversation={convo}
-                isActive={activeConversation?.id === convo.id}
-                onSelect={() => onConversationSelect(convo)}
-                onDelete={() => handleDeleteConversation(convo.id)}
-              />
-            ))
-          ) : (
-            <div className="p-4 text-center text-sm text-sidebar-foreground/80">
-              No conversations yet.
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-    </div>
+      <AlertDialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all conversations?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove your entire conversation history. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteAllConversations();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isBulkDeleting}
+            >
+              Delete All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
