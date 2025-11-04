@@ -39,10 +39,15 @@ type ApiTransaction = {
 
 function SidebarAutoCollapse({ userId }: { userId?: string }) {
   const { setOpen } = useSidebar();
+  const setOpenRef = useRef(setOpen);
 
   useEffect(() => {
-    setOpen(false);
-  }, [setOpen, userId]);
+    setOpenRef.current = setOpen;
+  }, [setOpen]);
+
+  useEffect(() => {
+    setOpenRef.current(false);
+  }, [userId]);
 
   return null;
 }
