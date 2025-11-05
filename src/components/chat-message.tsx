@@ -275,6 +275,52 @@ const SourcesCarousel = ({ references }: { references: NonNullable<ChatMessageTy
     );
 };
 
+const SourcesCarousel = ({ references }: { references: NonNullable<ChatMessageType['references']> }) => {
+    if (!references || references.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mt-6 border-t border-slate-200 pt-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                All Sources
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+                {references.map((reference, index) => {
+                    const domain = getDomainFromUrl(reference.url);
+                    const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
+
+                    if (!reference.url) {
+                        return (
+                            <div
+                                key={`${label}-${index}`}
+                                className="min-w-[200px] rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+                            >
+                                {label}
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <a
+                            key={reference.url || `${label}-${index}`}
+                            href={reference.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="min-w-[200px] flex-shrink-0 rounded-lg border border-border bg-background p-3 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50"
+                        >
+                            <div className="text-sm font-medium text-foreground line-clamp-2">{label}</div>
+                            {domain && (
+                                <div className="mt-1 text-xs text-muted-foreground">{domain}</div>
+                            )}
+                        </a>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
 
 export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     const isUser = message.role === 'user';

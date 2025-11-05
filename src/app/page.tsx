@@ -90,7 +90,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedGuardrailResult, setSelectedGuardrailResult] = useState<any>(null);
   const [lastApiTransaction, setLastApiTransaction] = useState<ApiTransaction | null>(null);
-  const [hasInitializedConversation, setHasInitializedConversation] = useState(false);
+  const [isStartingNewConversation, setIsStartingNewConversation] = useState(false);
   
   const { searchDomains, systemPrompt, useGuardrails, isSettingsReady } = useSettings();
   const { user } = useUser();
@@ -127,7 +127,7 @@ export default function Home() {
     }
   };
 
-  const createNewConversation = useCallback(async () => {
+  const createConversationRecord = useCallback(async () => {
     if (!user || !firestore || creatingConversationRef.current) return null;
     creatingConversationRef.current = true;
     const newConversationData: Omit<Conversation, 'id'> = {
@@ -140,6 +140,7 @@ export default function Home() {
       if (conversationRef) {
         const createdConversation = { id: conversationRef.id, ...newConversationData };
         setActiveConversation(createdConversation);
+        setIsStartingNewConversation(false);
         return createdConversation;
       }
     } finally {
@@ -148,21 +149,18 @@ export default function Home() {
     return null;
   }, [firestore, user]);
 
-  // Auto-select or create a conversation on login
+  const startNewConversation = useCallback(() => {
+    setIsStartingNewConversation(true);
+    setActiveConversation(null);
+  }, []);
+
   useEffect(() => {
     if (!user) {
       setActiveConversation(null);
     }
     creatingConversationRef.current = false;
-    setHasInitializedConversation(false);
+    setIsStartingNewConversation(false);
   }, [user?.uid]);
-
-  useEffect(() => {
-    if (user && firestore && !hasInitializedConversation) {
-      setHasInitializedConversation(true);
-      void createNewConversation();
-    }
-  }, [user, firestore, hasInitializedConversation, createNewConversation]);
 
   useEffect(() => {
     if (!user || !firestore) {
@@ -176,7 +174,9 @@ export default function Home() {
       q,
       (snapshot) => {
         if (snapshot.empty) {
-          void createNewConversation();
+          if (!isStartingNewConversation) {
+            setActiveConversation(null);
+          }
           return;
         }
 
@@ -184,12 +184,14 @@ export default function Home() {
         const latestData = { id: latestConvo.id, ...(latestConvo.data() as Omit<Conversation, 'id'>) };
 
         if (!activeConversation) {
-          setActiveConversation(latestData);
+          if (!isStartingNewConversation) {
+            setActiveConversation(latestData);
+          }
           return;
         }
 
         const currentExists = snapshot.docs.find((docSnapshot) => docSnapshot.id === activeConversation.id);
-        if (!currentExists) {
+        if (!currentExists && !isStartingNewConversation) {
           setActiveConversation(latestData);
         }
       },
@@ -199,7 +201,7 @@ export default function Home() {
     );
 
     return () => unsubscribe();
-  }, [user, firestore, activeConversation?.id, createNewConversation]);
+  }, [user, firestore, activeConversation?.id, isStartingNewConversation]);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!user || !activeConversation || !firestore) return null;
@@ -226,9 +228,13 @@ export default function Home() {
     let currentConversationId = activeConversation?.id;
 
     if (!currentConversationId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No active conversation found.' });
-      setIsLoading(false);
-      return;
+      const createdConversation = await createConversationRecord();
+      if (!createdConversation) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Unable to start a new conversation.' });
+        setIsLoading(false);
+        return;
+      }
+      currentConversationId = createdConversation.id;
     }
 
     const conversationDocRef = doc(firestore, 'users', user.uid, 'conversations', currentConversationId);
@@ -379,8 +385,11 @@ export default function Home() {
         <SidebarContent>
           <ConversationHistory
             activeConversation={activeConversation}
-            onConversationSelect={setActiveConversation}
-            onCreateNew={createNewConversation}
+            onConversationSelect={(conversation) => {
+              setIsStartingNewConversation(false);
+              setActiveConversation(conversation);
+            }}
+            onCreateNew={startNewConversation}
           />
         </SidebarContent>
       </Sidebar>
@@ -416,7 +425,7 @@ export default function Home() {
                           </p>
                           <AuthDialog />
                         </div>
-                   ) : messages?.length === 0 && !isLoading ? (
+                   ) : (!messages || messages.length === 0) && !isLoading && !isLoadingMessages ? (
                     <div className="flex h-full flex-col items-center justify-center p-8 text-center">
                        <HeartPulse className="mb-4 h-16 w-16 text-blue-500" />
                       <h2 className="mb-2 text-2xl font-headline">Welcome to Safe Health Chat</h2>
