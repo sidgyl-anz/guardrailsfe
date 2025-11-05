@@ -23,31 +23,33 @@ const getDomainFromUrl = (url: string | undefined) => {
 };
 
 const CitationPopover = ({
-    citationNumber,
+    citationNumbers,
     references,
 }: {
-    citationNumber: number;
+    citationNumbers: number[];
     references?: ChatMessageType['references'];
 }) => {
     const [open, setOpen] = React.useState(false);
 
-    if (!references || references.length === 0) {
-        return <span>[{citationNumber}]</span>;
+    if (!references || references.length === 0 || citationNumbers.length === 0) {
+        return <span>[{citationNumbers.join(', ')}]</span>;
     }
 
-    const primaryReference = references[citationNumber - 1];
-    if (!primaryReference) {
-        return <span>[{citationNumber}]</span>;
+    const selectedReferences = citationNumbers
+        .map((citationNumber) => references[citationNumber - 1])
+        .filter((reference): reference is NonNullable<typeof reference> => Boolean(reference));
+
+    if (selectedReferences.length === 0) {
+        return <span>[{citationNumbers.join(', ')}]</span>;
     }
 
+    const primaryReference = selectedReferences[0];
     const primaryDomain = getDomainFromUrl(primaryReference?.url);
     const primaryLabel =
         primaryReference?.title?.trim() || primaryDomain || primaryReference?.url || 'Source';
 
-    const additionalCount = Math.max(
-        references.length - (primaryReference ? 1 : 0),
-        0
-    );
+    const citationCount = selectedReferences.length;
+    const citationCountLabel = `${citationCount} ${citationCount === 1 ? 'source' : 'sources'}`;
 
     const handleOpen = (next: boolean) => setOpen(next);
     const handleMouseEnter = () => setOpen(true);
@@ -63,12 +65,9 @@ const CitationPopover = ({
                     onFocus={handleMouseEnter}
                     onBlur={handleMouseLeave}
                     className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                    aria-label={`View sources for ${primaryLabel}`}
+                    aria-label={`View ${citationCountLabel} for ${primaryLabel}`}
                 >
-                    <span className="max-w-[12ch] truncate">{primaryLabel}</span>
-                    {additionalCount > 0 && (
-                        <span className="text-[10px] font-semibold text-blue-500">+{additionalCount}</span>
-                    )}
+                    <span className="text-xs font-semibold">{citationCount}</span>
                 </button>
             </PopoverTrigger>
             <PopoverContent
@@ -80,17 +79,13 @@ const CitationPopover = ({
             >
                 <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
                     <span>Sources</span>
-                    <span>
-                        {references.length}{' '}
-                        {references.length === 1 ? 'source' : 'sources'}
-                    </span>
+                    <span>{citationCountLabel}</span>
                 </div>
                 <ul className="space-y-2">
-                    {references.map((reference, index) => {
+                    {selectedReferences.map((reference, index) => {
                         const domain = getDomainFromUrl(reference.url);
                         const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
                         const key = reference.url || `${reference.title}-${index}`;
-                        const isActive = index === citationNumber - 1;
 
                         if (!reference.url) {
                             return (
@@ -98,7 +93,6 @@ const CitationPopover = ({
                                     key={key}
                                     className={cn(
                                         'rounded-md border border-border bg-muted/30 p-2 text-sm text-muted-foreground',
-                                        isActive ? 'border-blue-200 bg-blue-50 text-blue-700' : ''
                                     )}
                                 >
                                     {label}
@@ -115,7 +109,7 @@ const CitationPopover = ({
                                     onClick={() => setOpen(false)}
                                     className={cn(
                                         'flex flex-col gap-1 rounded-md border border-transparent p-2 transition-colors hover:border-blue-200 hover:bg-blue-50',
-                                        isActive ? 'border-blue-300 bg-blue-50' : 'bg-background'
+                                        'bg-background'
                                     )}
                                 >
                                     <span className="text-sm font-medium text-foreground">{label}</span>
@@ -149,7 +143,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
 
                         const parts: (string | JSX.Element)[] = [];
                         let lastIndex = 0;
-                        const citationRegex = /\[(\d+)\]/g;
+                        const citationRegex = /(?:\[(\d+)\])+/g;
                         let match;
 
                         while ((match = citationRegex.exec(child)) !== null) {
@@ -158,14 +152,18 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                                 parts.push(textBefore);
                             }
 
-                            const citationNumber = parseInt(match[1], 10);
-                            const hasReferences = references && references.length >= citationNumber;
+                            const citationNumbers = Array.from(match[0].matchAll(/\[(\d+)\]/g)).map((citationMatch) =>
+                                parseInt(citationMatch[1], 10)
+                            );
+                            const validCitationNumbers = citationNumbers.filter(
+                                (citationNumber) => references && references.length >= citationNumber
+                            );
 
-                            if (hasReferences) {
+                            if (validCitationNumbers.length > 0) {
                                 parts.push(
                                     <CitationPopover
                                         key={`${match.index}-${index}`}
-                                        citationNumber={citationNumber}
+                                        citationNumbers={validCitationNumbers}
                                         references={references}
                                     />
                                 );
@@ -182,7 +180,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                         
                         return parts.length > 0 ? parts : [child];
                     });
-                    
+
                     return <p {...props}>{processedChildren}</p>;
                 },
             }}
@@ -192,6 +190,52 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
     );
 });
 MemoizedReactMarkdown.displayName = 'MemoizedReactMarkdown';
+
+const SourcesCarousel = ({ references }: { references: NonNullable<ChatMessageType['references']> }) => {
+    if (!references || references.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mt-4">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                All Sources
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+                {references.map((reference, index) => {
+                    const domain = getDomainFromUrl(reference.url);
+                    const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
+
+                    if (!reference.url) {
+                        return (
+                            <div
+                                key={`${label}-${index}`}
+                                className="min-w-[200px] rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+                            >
+                                {label}
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <a
+                            key={reference.url || `${label}-${index}`}
+                            href={reference.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="min-w-[200px] flex-shrink-0 rounded-lg border border-border bg-background p-3 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50"
+                        >
+                            <div className="text-sm font-medium text-foreground line-clamp-2">{label}</div>
+                            {domain && (
+                                <div className="mt-1 text-xs text-muted-foreground">{domain}</div>
+                            )}
+                        </a>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
 
 
 export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
@@ -241,6 +285,9 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         )}
                     >
                         <MemoizedReactMarkdown content={message.content} references={message.references || []} />
+                        {!message.isBlocked && message.references && message.references.length > 0 && (
+                            <SourcesCarousel references={message.references} />
+                        )}
                     </div>
                 </div>
                 {hasGuardrailInfo && (
