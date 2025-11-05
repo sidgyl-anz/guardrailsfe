@@ -142,70 +142,138 @@ const CitationPopover = ({
     );
 };
 
-const MemoizedReactMarkdown = React.memo(({ content, references }: { content: string, references: ChatMessageType['references'] }) => {
-    return (
-        <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            className="prose dark:prose-invert prose-p:leading-relaxed prose-sm max-w-none"
-            components={{
-                a: ({ node, ...props }) => {
-                    return <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" />;
-                },
-                p: ({ children, ...props }) => {
-                    const processedChildren = React.Children.toArray(children).flatMap((child, index) => {
-                        if (typeof child !== 'string') {
-                            return child;
-                        }
+const renderChildrenWithCitations = (
+    children: React.ReactNode,
+    references: ChatMessageType['references'],
+    keyPrefix = 'citation'
+) => {
+    return React.Children.toArray(children).flatMap((child, index) => {
+        if (typeof child === 'string') {
+            const parts: (string | JSX.Element)[] = [];
+            let lastIndex = 0;
+            const citationRegex = /(?:\[(\d+)\])+/g;
+            let match;
 
-                        const parts: (string | JSX.Element)[] = [];
-                        let lastIndex = 0;
-                        const citationRegex = /(?:\[(\d+)\])+/g;
-                        let match;
+            while ((match = citationRegex.exec(child)) !== null) {
+                const textBefore = child.substring(lastIndex, match.index);
+                if (textBefore) {
+                    parts.push(textBefore);
+                }
 
-                        while ((match = citationRegex.exec(child)) !== null) {
-                            const textBefore = child.substring(lastIndex, match.index);
-                            if (textBefore) {
-                                parts.push(textBefore);
-                            }
+                const citationNumbers = Array.from(match[0].matchAll(/\[(\d+)\]/g)).map((citationMatch) =>
+                    parseInt(citationMatch[1], 10)
+                );
+                const validCitationNumbers = citationNumbers.filter(
+                    (citationNumber) => references && references.length >= citationNumber
+                );
 
-                            const citationNumbers = Array.from(match[0].matchAll(/\[(\d+)\]/g)).map((citationMatch) =>
-                                parseInt(citationMatch[1], 10)
-                            );
-                            const validCitationNumbers = citationNumbers.filter(
-                                (citationNumber) => references && references.length >= citationNumber
-                            );
+                if (validCitationNumbers.length > 0) {
+                    parts.push(
+                        <CitationPopover
+                            key={`${keyPrefix}-${index}-${match.index}`}
+                            citationNumbers={validCitationNumbers}
+                            references={references}
+                        />
+                    );
+                } else {
+                    parts.push(match[0]);
+                }
+                lastIndex = citationRegex.lastIndex;
+            }
 
-                            if (validCitationNumbers.length > 0) {
-                                parts.push(
-                                    <CitationPopover
-                                        key={`${match.index}-${index}`}
-                                        citationNumbers={validCitationNumbers}
-                                        references={references}
-                                    />
-                                );
-                            } else {
-                                parts.push(match[0]); // If no valid link found, render as text
-                            }
-                            lastIndex = citationRegex.lastIndex;
-                        }
+            const remainingText = child.substring(lastIndex);
+            if (remainingText) {
+                parts.push(remainingText);
+            }
 
-                        const remainingText = child.substring(lastIndex);
-                        if (remainingText) {
-                            parts.push(remainingText);
-                        }
-                        
-                        return parts.length > 0 ? parts : [child];
-                    });
+            return parts.length > 0 ? parts : [child];
+        }
 
-                    return <p {...props}>{processedChildren}</p>;
-                },
-            }}
-        >
-            {content}
-        </ReactMarkdown>
-    );
-});
+        if (React.isValidElement(child) && child.props?.children) {
+            return React.cloneElement(child, {
+                children: renderChildrenWithCitations(child.props.children, references, `${keyPrefix}-${index}`),
+            });
+        }
+
+        return child;
+    });
+};
+
+const createCitationRenderer = <T extends keyof JSX.IntrinsicElements>(
+    Tag: T,
+    references: ChatMessageType['references']
+) => {
+    return function CitationRenderer({ children, ...props }: React.ComponentPropsWithoutRef<T>) {
+        return React.createElement(Tag, props, renderChildrenWithCitations(children, references, Tag));
+    };
+};
+
+const MemoizedReactMarkdown = React.memo(
+    ({ content, references }: { content: string; references: ChatMessageType['references'] }) => {
+        return (
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                className="prose dark:prose-invert prose-p:leading-relaxed prose-sm max-w-none"
+                components={{
+                    a: ({ node, ...props }) => {
+                        return <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" />;
+                    },
+                    p: createCitationRenderer('p', references),
+                    li: createCitationRenderer('li', references),
+                }}
+            >
+                {content}
+            </ReactMarkdown>
+        );
+    }
+);
 MemoizedReactMarkdown.displayName = 'MemoizedReactMarkdown';
+
+const SourcesCarousel = ({ references }: { references: NonNullable<ChatMessageType['references']> }) => {
+    if (!references || references.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mt-6 border-t border-slate-200 pt-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                All Sources
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+                {references.map((reference, index) => {
+                    const domain = getDomainFromUrl(reference.url);
+                    const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
+
+                    if (!reference.url) {
+                        return (
+                            <div
+                                key={`${label}-${index}`}
+                                className="min-w-[200px] rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+                            >
+                                {label}
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <a
+                            key={reference.url || `${label}-${index}`}
+                            href={reference.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="min-w-[200px] flex-shrink-0 rounded-lg border border-border bg-background p-3 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50"
+                        >
+                            <div className="text-sm font-medium text-foreground line-clamp-2">{label}</div>
+                            {domain && (
+                                <div className="mt-1 text-xs text-muted-foreground">{domain}</div>
+                            )}
+                        </a>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
 
 const SourcesCarousel = ({ references }: { references: NonNullable<ChatMessageType['references']> }) => {
     if (!references || references.length === 0) {
