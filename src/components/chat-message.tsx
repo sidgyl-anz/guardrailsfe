@@ -64,7 +64,7 @@ const CitationPopover = ({
     const handleMouseLeave = () => setOpen(false);
 
     return (
-        <Popover open={open} onOpenChange={handleOpen}>
+        <Popover open={open} onOpenChange={handleOpen} modal={false}>
             <PopoverTrigger asChild>
                 <button
                     type="button"
