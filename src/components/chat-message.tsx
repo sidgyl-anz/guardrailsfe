@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { type ChatMessage as ChatMessageType } from '@/lib/types';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 const getDomainFromUrl = (url: string | undefined) => {
@@ -148,14 +148,15 @@ const renderChildrenWithCitations = (
     keyPrefix = 'citation'
 ) => {
     return React.Children.toArray(children).flatMap((child, index) => {
-        if (typeof child === 'string') {
+        if (typeof child === 'string' || typeof child === 'number') {
+            const text = String(child);
             const parts: (string | JSX.Element)[] = [];
             let lastIndex = 0;
-            const citationRegex = /(?:\[(\d+)\])+/g;
+            const citationRegex = /\[(\d+)\](?:\s*\[(\d+)\])*/g;
             let match;
 
-            while ((match = citationRegex.exec(child)) !== null) {
-                const textBefore = child.substring(lastIndex, match.index);
+            while ((match = citationRegex.exec(text)) !== null) {
+                const textBefore = text.substring(lastIndex, match.index);
                 if (textBefore) {
                     parts.push(textBefore);
                 }
@@ -181,12 +182,12 @@ const renderChildrenWithCitations = (
                 lastIndex = citationRegex.lastIndex;
             }
 
-            const remainingText = child.substring(lastIndex);
+            const remainingText = text.substring(lastIndex);
             if (remainingText) {
                 parts.push(remainingText);
             }
 
-            return parts.length > 0 ? parts : [child];
+            return parts.length > 0 ? parts : [text];
         }
 
         if (React.isValidElement(child) && child.props?.children) {
@@ -204,23 +205,50 @@ const createCitationRenderer = <T extends keyof JSX.IntrinsicElements>(
     references: ChatMessageType['references']
 ) => {
     return function CitationRenderer({ children, ...props }: React.ComponentPropsWithoutRef<T>) {
-        return React.createElement(Tag, props, renderChildrenWithCitations(children, references, Tag));
+        return React.createElement(
+            Tag,
+            props,
+            renderChildrenWithCitations(children, references, String(Tag))
+        );
     };
 };
 
 const MemoizedReactMarkdown = React.memo(
     ({ content, references }: { content: string; references: ChatMessageType['references'] }) => {
+        const components = React.useMemo(() => {
+            const baseComponents: Components = {
+                a: ({ node, ...props }) => (
+                    <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" />
+                ),
+            };
+
+            const citationTags: Array<keyof Components> = [
+                'p',
+                'li',
+                'blockquote',
+                'h1',
+                'h2',
+                'h3',
+                'h4',
+                'h5',
+                'h6',
+                'td',
+                'th',
+                'caption',
+            ];
+
+            for (const tag of citationTags) {
+                baseComponents[tag] = createCitationRenderer(tag as keyof JSX.IntrinsicElements, references);
+            }
+
+            return baseComponents;
+        }, [references]);
+
         return (
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 className="prose dark:prose-invert prose-p:leading-relaxed prose-sm max-w-none"
-                components={{
-                    a: ({ node, ...props }) => {
-                        return <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" />;
-                    },
-                    p: createCitationRenderer('p', references),
-                    li: createCitationRenderer('li', references),
-                }}
+                components={components}
             >
                 {content}
             </ReactMarkdown>
@@ -229,53 +257,7 @@ const MemoizedReactMarkdown = React.memo(
 );
 MemoizedReactMarkdown.displayName = 'MemoizedReactMarkdown';
 
-const SourcesCarousel = ({ references }: { references: NonNullable<ChatMessageType['references']> }) => {
-    if (!references || references.length === 0) {
-        return null;
-    }
-
-    return (
-        <div className="mt-6 border-t border-slate-200 pt-4">
-            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                All Sources
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-2">
-                {references.map((reference, index) => {
-                    const domain = getDomainFromUrl(reference.url);
-                    const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
-
-                    if (!reference.url) {
-                        return (
-                            <div
-                                key={`${label}-${index}`}
-                                className="min-w-[200px] rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
-                            >
-                                {label}
-                            </div>
-                        );
-                    }
-
-                    return (
-                        <a
-                            key={reference.url || `${label}-${index}`}
-                            href={reference.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="min-w-[200px] flex-shrink-0 rounded-lg border border-border bg-background p-3 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50"
-                        >
-                            <div className="text-sm font-medium text-foreground line-clamp-2">{label}</div>
-                            {domain && (
-                                <div className="mt-1 text-xs text-muted-foreground">{domain}</div>
-                            )}
-                        </a>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
-
-const SourcesCarousel = ({ references }: { references: NonNullable<ChatMessageType['references']> }) => {
+const AllSourcesCarousel = ({ references }: { references: NonNullable<ChatMessageType['references']> }) => {
     if (!references || references.length === 0) {
         return null;
     }
@@ -351,7 +333,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
             <div className="relative flex items-start max-w-full">
                 <div
                     className={cn(
-                        'max-w-3xl rounded-xl p-6 shadow-sm text-left',
+                        'max-w-4xl rounded-xl p-6 shadow-sm text-left',
                         isUser ? 'bg-card' : 'bg-primary',
                         message.isBlocked && 'bg-muted border'
                     )}
@@ -370,7 +352,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                     >
                         <MemoizedReactMarkdown content={message.content} references={message.references || []} />
                         {!message.isBlocked && message.references && message.references.length > 0 && (
-                            <SourcesCarousel references={message.references} />
+                            <AllSourcesCarousel references={message.references} />
                         )}
                     </div>
                 </div>
@@ -411,7 +393,7 @@ export function LoadingMessage() {
                     <HeartPulse />
                 </AvatarFallback>
             </Avatar>
-            <div className="max-w-3xl rounded-xl p-6 shadow-sm bg-primary text-primary-foreground">
+            <div className="max-w-4xl rounded-xl p-6 shadow-sm bg-primary text-primary-foreground">
                 <BlinkingDots />
             </div>
         </div>
