@@ -32,7 +32,15 @@ const CitationPopover = ({
     const [open, setOpen] = React.useState(false);
 
     if (!references || references.length === 0 || citationNumbers.length === 0) {
-        return <span>[{citationNumbers.join(', ')}]</span>;
+        return (
+            <span
+                className="inline-flex items-center gap-1 rounded-full border border-blue-200/60 bg-white px-2.5 py-1 text-[11px] font-medium text-blue-600 shadow-sm"
+            >
+                <span className="text-[10px] uppercase tracking-wide text-blue-500">Sources</span>
+                <span aria-hidden className="h-1 w-1 rounded-full bg-blue-200" />
+                <span className="text-xs font-semibold">{citationNumbers.length}</span>
+            </span>
+        );
     }
 
     const selectedReferences = citationNumbers
@@ -64,22 +72,29 @@ const CitationPopover = ({
                     onMouseLeave={handleMouseLeave}
                     onFocus={handleMouseEnter}
                     onBlur={handleMouseLeave}
-                    className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    className="inline-flex items-center gap-1 rounded-full border border-blue-200/60 bg-white px-2.5 py-1 text-[11px] font-medium text-blue-600 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                     aria-label={`View ${citationCountLabel} for ${primaryLabel}`}
                 >
-                    <span className="text-xs font-semibold">{citationCount}</span>
+                    <span className="text-[10px] uppercase tracking-wide text-blue-500">Sources</span>
+                    <span aria-hidden className="h-1 w-1 rounded-full bg-blue-200" />
+                    <span className="text-xs font-semibold text-blue-700">{citationCount}</span>
                 </button>
             </PopoverTrigger>
             <PopoverContent
                 side="top"
                 align="center"
-                className="w-80 space-y-3 p-4"
+                className="w-96 space-y-3 rounded-xl border border-slate-200 p-4 shadow-lg"
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
-                <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
-                    <span>Sources</span>
-                    <span>{citationCountLabel}</span>
+                <div className="flex items-center justify-between text-sm font-semibold text-foreground">
+                    <div className="inline-flex items-center gap-2">
+                        <span className="uppercase tracking-wide text-[11px] text-blue-500">Sources</span>
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
+                            {citationCount}
+                        </span>
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">{citationCountLabel}</span>
                 </div>
                 <ul className="space-y-2">
                     {selectedReferences.map((reference, index) => {
@@ -92,7 +107,7 @@ const CitationPopover = ({
                                 <li
                                     key={key}
                                     className={cn(
-                                        'rounded-md border border-border bg-muted/30 p-2 text-sm text-muted-foreground',
+                                        'rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground',
                                     )}
                                 >
                                     {label}
@@ -108,8 +123,9 @@ const CitationPopover = ({
                                     rel="noopener noreferrer"
                                     onClick={() => setOpen(false)}
                                     className={cn(
-                                        'flex flex-col gap-1 rounded-md border border-transparent p-2 transition-colors hover:border-blue-200 hover:bg-blue-50',
-                                        'bg-background'
+                                        'flex flex-col gap-1 rounded-lg border border-transparent p-3 transition-colors hover:border-blue-200 hover:bg-blue-50',
+                                        'bg-background',
+                                        index === 0 && 'border-blue-200 bg-blue-50'
                                     )}
                                 >
                                     <span className="text-sm font-medium text-foreground">{label}</span>
@@ -197,8 +213,8 @@ const SourcesCarousel = ({ references }: { references: NonNullable<ChatMessageTy
     }
 
     return (
-        <div className="mt-4">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="mt-6 border-t border-slate-200 pt-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 All Sources
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2">
@@ -267,7 +283,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
             <div className="relative flex items-start max-w-full">
                 <div
                     className={cn(
-                        'max-w-prose rounded-lg p-4 shadow-sm text-left',
+                        'max-w-3xl rounded-xl p-6 shadow-sm text-left',
                         isUser ? 'bg-card' : 'bg-primary',
                         message.isBlocked && 'bg-muted border'
                     )}
@@ -322,12 +338,12 @@ const BlinkingDots = () => (
 export function LoadingMessage() {
     return (
         <div className="flex items-start gap-4">
-             <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
+            <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
                 <AvatarFallback className="bg-transparent text-blue-500">
                     <HeartPulse />
                 </AvatarFallback>
             </Avatar>
-            <div className="max-w-prose rounded-lg p-4 shadow-sm bg-primary text-primary-foreground">
+            <div className="max-w-3xl rounded-xl p-6 shadow-sm bg-primary text-primary-foreground">
                 <BlinkingDots />
             </div>
         </div>
