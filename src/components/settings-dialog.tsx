@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Cog, Save } from 'lucide-react';
+import { useState, useEffect, KeyboardEvent } from 'react';
+import { Cog, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -16,27 +16,17 @@ import {
 import { Label } from '@/components/ui/label';
 import { useSettings } from '@/hooks/use-settings';
 import { useToast } from '@/hooks/use-toast';
-import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from './ui/badge';
 import { Textarea } from './ui/textarea';
 import { Switch } from './ui/switch';
-
-const AVAILABLE_DOMAINS = [
-    'medlineplus.gov', 'arxiv.org', 'wikipedia.org', 'forbes.com', 'wsj.com', 'wired.com', 'techcrunch.com', 'youtube.com', 'reddit.com'
-];
+import { Input } from './ui/input';
 
 export function SettingsDialog() {
     const { searchDomains, systemPrompt, useGuardrails, setSearchDomains, setSystemPrompt, setUseGuardrails, isSettingsReady } = useSettings();
     const [localDomains, setLocalDomains] = useState<string[]>(searchDomains);
     const [localSystemPrompt, setLocalSystemPrompt] = useState(systemPrompt);
     const [localUseGuardrails, setLocalUseGuardrails] = useState(useGuardrails);
+    const [domainInput, setDomainInput] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const { toast } = useToast();
 
@@ -45,8 +35,42 @@ export function SettingsDialog() {
             setLocalDomains(searchDomains || []);
             setLocalSystemPrompt(systemPrompt || '');
             setLocalUseGuardrails(useGuardrails);
+            setDomainInput('');
         }
     }, [isOpen, isSettingsReady, searchDomains, systemPrompt, useGuardrails]);
+
+    const sanitizeDomain = (value: string) => {
+        return value
+            .trim()
+            .toLowerCase()
+            .replace(/^https?:\/\//, '')
+            .replace(/^www\./, '')
+            .split('/')[0];
+    };
+
+    const addDomain = () => {
+        const sanitized = sanitizeDomain(domainInput);
+        if (!sanitized) {
+            setDomainInput('');
+            return;
+        }
+
+        if (!localDomains.includes(sanitized)) {
+            setLocalDomains(prev => [...prev, sanitized]);
+        }
+        setDomainInput('');
+    };
+
+    const handleDomainKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addDomain();
+        }
+    };
+
+    const removeDomain = (domain: string) => {
+        setLocalDomains(prev => prev.filter(item => item !== domain));
+    };
 
     const handleSave = () => {
         setSearchDomains(localDomains);
@@ -85,40 +109,39 @@ export function SettingsDialog() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>
+                        <Label htmlFor="information-source-input">
                             Information Sources
                         </Label>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full justify-start font-normal">
-                                    <span className="truncate">
-                                        {localDomains.length > 0 ? `${localDomains.length} selected` : 'Select sources'}
-                                    </span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-64" align="start">
-                                <DropdownMenuLabel>Filter by information source</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {AVAILABLE_DOMAINS.map((domain) => (
-                                    <DropdownMenuCheckboxItem
-                                        key={domain}
-                                        checked={localDomains.includes(domain)}
-                                        onCheckedChange={(checked) => {
-                                            const newDomains = checked
-                                                ? [...localDomains, domain]
-                                                : localDomains.filter((d) => d !== domain);
-                                            setLocalDomains(newDomains);
-                                        }}
-                                    >
-                                        {domain}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex gap-2">
+                            <Input
+                                id="information-source-input"
+                                value={domainInput}
+                                onChange={(event) => setDomainInput(event.target.value)}
+                                onKeyDown={handleDomainKeyDown}
+                                placeholder="Add a source domain (e.g., medlineplus.gov)"
+                                aria-describedby="information-source-helper"
+                            />
+                            <Button type="button" variant="secondary" onClick={addDomain} disabled={!domainInput.trim()}>
+                                Add
+                            </Button>
+                        </div>
+                        <p id="information-source-helper" className="text-xs text-muted-foreground">
+                            Press Enter after typing each domain. Medlineplus.gov is included by default.
+                        </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {localDomains.length > 0 ? localDomains.map(domain => (
-                            <Badge key={domain} variant="secondary">{domain}</Badge>
+                            <Badge key={domain} variant="secondary" className="flex items-center gap-1 pr-1">
+                                <span>{domain}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => removeDomain(domain)}
+                                    className="rounded-full p-0.5 text-muted-foreground transition-colors hover:text-destructive"
+                                    aria-label={`Remove ${domain} from information sources`}
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
                         )) : <p className="text-sm text-muted-foreground">No sources selected. Search will be across the web.</p>}
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-3">
@@ -128,11 +151,20 @@ export function SettingsDialog() {
                             Enable to check input and output for safety.
                         </p>
                         </div>
-                        <Switch
-                            id="guardrails-switch"
-                            checked={localUseGuardrails}
-                            onCheckedChange={setLocalUseGuardrails}
-                        />
+                        <div className="flex items-center gap-2">
+                            <Switch
+                                id="guardrails-switch"
+                                checked={localUseGuardrails}
+                                onCheckedChange={setLocalUseGuardrails}
+                                aria-describedby="guardrails-status"
+                            />
+                            <span
+                                id="guardrails-status"
+                                className={`text-sm font-medium ${localUseGuardrails ? 'text-emerald-600' : 'text-muted-foreground'}`}
+                            >
+                                {localUseGuardrails ? 'On' : 'Off'}
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>
