@@ -11,18 +11,53 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+const getDomainFromUrl = (url: string | undefined) => {
+    if (!url) return undefined;
+
+    try {
+        const hostname = new URL(url).hostname;
+        return hostname.replace(/^www\./, '');
+    } catch {
+        return undefined;
+    }
+};
+
 const CitationPopover = ({
-    citationNumber,
+    citationNumbers,
     references,
 }: {
-    citationNumber: number;
+    citationNumbers: number[];
     references?: ChatMessageType['references'];
 }) => {
     const [open, setOpen] = React.useState(false);
 
-    if (!references || references.length === 0) {
-        return <span>[{citationNumber}]</span>;
+    if (!references || references.length === 0 || citationNumbers.length === 0) {
+        return (
+            <span
+                className="inline-flex items-center gap-1 rounded-full border border-blue-200/60 bg-white px-2.5 py-1 text-[11px] font-medium text-blue-600 shadow-sm"
+            >
+                <span className="text-[10px] uppercase tracking-wide text-blue-500">Sources</span>
+                <span aria-hidden className="h-1 w-1 rounded-full bg-blue-200" />
+                <span className="text-xs font-semibold">{citationNumbers.length}</span>
+            </span>
+        );
     }
+
+    const selectedReferences = citationNumbers
+        .map((citationNumber) => references[citationNumber - 1])
+        .filter((reference): reference is NonNullable<typeof reference> => Boolean(reference));
+
+    if (selectedReferences.length === 0) {
+        return <span>[{citationNumbers.join(', ')}]</span>;
+    }
+
+    const primaryReference = selectedReferences[0];
+    const primaryDomain = getDomainFromUrl(primaryReference?.url);
+    const primaryLabel =
+        primaryReference?.title?.trim() || primaryDomain || primaryReference?.url || 'Source';
+
+    const citationCount = selectedReferences.length;
+    const citationCountLabel = `${citationCount} ${citationCount === 1 ? 'source' : 'sources'}`;
 
     const handleOpen = (next: boolean) => setOpen(next);
     const handleMouseEnter = () => setOpen(true);
@@ -37,31 +72,45 @@ const CitationPopover = ({
                     onMouseLeave={handleMouseLeave}
                     onFocus={handleMouseEnter}
                     onBlur={handleMouseLeave}
-                    className="inline-flex items-center text-blue-600 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 rounded-sm"
-                    aria-label={`View sources for citation ${citationNumber}`}
+                    className="inline-flex items-center gap-1 rounded-full border border-blue-200/60 bg-white px-2.5 py-1 text-[11px] font-medium text-blue-600 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    aria-label={`View ${citationCountLabel} for ${primaryLabel}`}
                 >
-                    [{citationNumber}]
+                    <span className="text-[10px] uppercase tracking-wide text-blue-500">Sources</span>
+                    <span aria-hidden className="h-1 w-1 rounded-full bg-blue-200" />
+                    <span className="text-xs font-semibold text-blue-700">{citationCount}</span>
                 </button>
             </PopoverTrigger>
             <PopoverContent
                 side="top"
                 align="center"
-                className="w-72 p-3 space-y-2"
+                className="w-96 space-y-3 rounded-xl border border-slate-200 p-4 shadow-lg"
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sources</p>
-                <ul className="space-y-1">
-                    {references.map((reference, index) => {
-                        const label = reference.title?.trim() || reference.url;
+                <div className="flex items-center justify-between text-sm font-semibold text-foreground">
+                    <div className="inline-flex items-center gap-2">
+                        <span className="uppercase tracking-wide text-[11px] text-blue-500">Sources</span>
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
+                            {citationCount}
+                        </span>
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">{citationCountLabel}</span>
+                </div>
+                <ul className="space-y-2">
+                    {selectedReferences.map((reference, index) => {
+                        const domain = getDomainFromUrl(reference.url);
+                        const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
                         const key = reference.url || `${reference.title}-${index}`;
-                        const isActive = index === citationNumber - 1;
 
                         if (!reference.url) {
                             return (
-                                <li key={key} className="text-sm text-muted-foreground">
-                                    <span className="mr-1 text-xs text-muted-foreground">[{index + 1}]</span>
-                                    {label || `Source [${index + 1}]`}
+                                <li
+                                    key={key}
+                                    className={cn(
+                                        'rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground',
+                                    )}
+                                >
+                                    {label}
                                 </li>
                             );
                         }
@@ -74,12 +123,15 @@ const CitationPopover = ({
                                     rel="noopener noreferrer"
                                     onClick={() => setOpen(false)}
                                     className={cn(
-                                        'flex items-start gap-2 text-sm text-blue-600 hover:underline',
-                                        isActive ? 'font-semibold text-blue-700' : ''
+                                        'flex flex-col gap-1 rounded-lg border border-transparent p-3 transition-colors hover:border-blue-200 hover:bg-blue-50',
+                                        'bg-background',
+                                        index === 0 && 'border-blue-200 bg-blue-50'
                                     )}
                                 >
-                                    <span className="text-xs text-muted-foreground">[{index + 1}]</span>
-                                    <span className="text-left break-words">{label || `Source [${index + 1}]`}</span>
+                                    <span className="text-sm font-medium text-foreground">{label}</span>
+                                    {domain && (
+                                        <span className="text-xs text-muted-foreground">{domain}</span>
+                                    )}
                                 </a>
                             </li>
                         );
@@ -107,7 +159,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
 
                         const parts: (string | JSX.Element)[] = [];
                         let lastIndex = 0;
-                        const citationRegex = /\[(\d+)\]/g;
+                        const citationRegex = /(?:\[(\d+)\])+/g;
                         let match;
 
                         while ((match = citationRegex.exec(child)) !== null) {
@@ -116,14 +168,18 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                                 parts.push(textBefore);
                             }
 
-                            const citationNumber = parseInt(match[1], 10);
-                            const hasReferences = references && references.length >= citationNumber;
+                            const citationNumbers = Array.from(match[0].matchAll(/\[(\d+)\]/g)).map((citationMatch) =>
+                                parseInt(citationMatch[1], 10)
+                            );
+                            const validCitationNumbers = citationNumbers.filter(
+                                (citationNumber) => references && references.length >= citationNumber
+                            );
 
-                            if (hasReferences) {
+                            if (validCitationNumbers.length > 0) {
                                 parts.push(
                                     <CitationPopover
                                         key={`${match.index}-${index}`}
-                                        citationNumber={citationNumber}
+                                        citationNumbers={validCitationNumbers}
                                         references={references}
                                     />
                                 );
@@ -140,7 +196,7 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
                         
                         return parts.length > 0 ? parts : [child];
                     });
-                    
+
                     return <p {...props}>{processedChildren}</p>;
                 },
             }}
@@ -150,6 +206,52 @@ const MemoizedReactMarkdown = React.memo(({ content, references }: { content: st
     );
 });
 MemoizedReactMarkdown.displayName = 'MemoizedReactMarkdown';
+
+const SourcesCarousel = ({ references }: { references: NonNullable<ChatMessageType['references']> }) => {
+    if (!references || references.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mt-6 border-t border-slate-200 pt-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                All Sources
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+                {references.map((reference, index) => {
+                    const domain = getDomainFromUrl(reference.url);
+                    const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
+
+                    if (!reference.url) {
+                        return (
+                            <div
+                                key={`${label}-${index}`}
+                                className="min-w-[200px] rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+                            >
+                                {label}
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <a
+                            key={reference.url || `${label}-${index}`}
+                            href={reference.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="min-w-[200px] flex-shrink-0 rounded-lg border border-border bg-background p-3 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50"
+                        >
+                            <div className="text-sm font-medium text-foreground line-clamp-2">{label}</div>
+                            {domain && (
+                                <div className="mt-1 text-xs text-muted-foreground">{domain}</div>
+                            )}
+                        </a>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
 
 
 export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
@@ -181,7 +283,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
             <div className="relative flex items-start max-w-full">
                 <div
                     className={cn(
-                        'max-w-prose rounded-lg p-4 shadow-sm text-left',
+                        'max-w-3xl rounded-xl p-6 shadow-sm text-left',
                         isUser ? 'bg-card' : 'bg-primary',
                         message.isBlocked && 'bg-muted border'
                     )}
@@ -199,6 +301,9 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                         )}
                     >
                         <MemoizedReactMarkdown content={message.content} references={message.references || []} />
+                        {!message.isBlocked && message.references && message.references.length > 0 && (
+                            <SourcesCarousel references={message.references} />
+                        )}
                     </div>
                 </div>
                 {hasGuardrailInfo && (
@@ -233,12 +338,12 @@ const BlinkingDots = () => (
 export function LoadingMessage() {
     return (
         <div className="flex items-start gap-4">
-             <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
+            <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
                 <AvatarFallback className="bg-transparent text-blue-500">
                     <HeartPulse />
                 </AvatarFallback>
             </Avatar>
-            <div className="max-w-prose rounded-lg p-4 shadow-sm bg-primary text-primary-foreground">
+            <div className="max-w-3xl rounded-xl p-6 shadow-sm bg-primary text-primary-foreground">
                 <BlinkingDots />
             </div>
         </div>
