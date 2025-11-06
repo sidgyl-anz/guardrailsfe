@@ -330,10 +330,11 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
         <div className="group flex w-full items-start gap-3 sm:gap-4">
             {avatar}
 
-            <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-3">
+            <div className="min-w-0 flex-1">
                 <div
                     className={cn(
-                        'w-full max-w-full rounded-xl p-4 shadow-sm text-left sm:max-w-3xl sm:p-5 lg:max-w-4xl lg:p-6',
+                        'relative w-full max-w-full rounded-xl p-4 shadow-sm text-left sm:max-w-3xl sm:p-5 lg:max-w-4xl lg:p-6',
+                        hasGuardrailInfo && 'pr-12 sm:pr-14',
                         isUser ? 'bg-card' : 'bg-primary',
                         message.isBlocked && 'bg-muted border'
                     )}
@@ -355,23 +356,24 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                             <AllSourcesCarousel references={message.references} />
                         )}
                     </div>
+
+                    {hasGuardrailInfo && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                                'absolute right-3 top-3 h-7 w-7 transition-colors sm:right-4 sm:top-4',
+                                message.isBlocked
+                                    ? 'text-red-600 hover:text-red-700 hover:bg-red-50 focus-visible:ring-red-500'
+                                    : 'text-green-600 hover:text-green-700 hover:bg-green-50 focus-visible:ring-green-500'
+                            )}
+                            onClick={onGuardrailClick}
+                        >
+                            {message.isBlocked ? <ShieldAlert className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
+                            <span className="sr-only">View Guardrail Details</span>
+                        </Button>
+                    )}
                 </div>
-                {hasGuardrailInfo && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                            'mt-2 h-7 w-7 flex-shrink-0 self-start transition-colors sm:mt-0 sm:ml-1',
-                            message.isBlocked
-                                ? 'text-red-600 hover:text-red-700 hover:bg-red-50 focus-visible:ring-red-500'
-                                : 'text-green-600 hover:text-green-700 hover:bg-green-50 focus-visible:ring-green-500'
-                        )}
-                        onClick={onGuardrailClick}
-                    >
-                        {message.isBlocked ? <ShieldAlert className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
-                        <span className="sr-only">View Guardrail Details</span>
-                    </Button>
-                )}
             </div>
         </div>
     );
