@@ -37,6 +37,70 @@ type ApiTransaction = {
   response: any;
 };
 
+type MinimalMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+const MAX_REQUEST_CHARACTERS = 80_000;
+const MAX_MESSAGE_CHARACTERS = 6_000;
+const MIN_MESSAGES_TO_PRESERVE = 6;
+const MAX_MESSAGES_TO_PRESERVE = 40;
+
+function limitMessageHistorySize(messages: MinimalMessage[]): MinimalMessage[] {
+  if (messages.length === 0) {
+    return messages;
+  }
+
+  const normalized = messages.map(message => ({
+    role: message.role,
+    content: (message.content ?? '').slice(-MAX_MESSAGE_CHARACTERS),
+  }));
+
+  const limitedByCount = normalized.slice(
+    -Math.max(MIN_MESSAGES_TO_PRESERVE, Math.min(MAX_MESSAGES_TO_PRESERVE, normalized.length))
+  );
+
+  let totalChars = 0;
+  const preserved: MinimalMessage[] = [];
+
+  for (let index = limitedByCount.length - 1; index >= 0; index -= 1) {
+    const current = limitedByCount[index];
+    const available = MAX_REQUEST_CHARACTERS - totalChars;
+
+    if (available <= 0) {
+      break;
+    }
+
+    let content = current.content;
+    if (content.length > available) {
+      content = content.slice(-available);
+    }
+
+    preserved.unshift({ role: current.role, content });
+    totalChars += content.length;
+  }
+
+  if (preserved.length === 0) {
+    const lastMessage = normalized[normalized.length - 1];
+    return [
+      {
+        role: lastMessage.role,
+        content: lastMessage.content.slice(-Math.min(MAX_MESSAGE_CHARACTERS, MAX_REQUEST_CHARACTERS)),
+      },
+    ];
+  }
+
+  if (preserved.length < messages.length) {
+    preserved[0] = {
+      role: preserved[0].role,
+      content: `Earlier messages were truncated for length.\n\n${preserved[0].content}`,
+    };
+  }
+
+  return preserved;
+}
+
 function SidebarAutoCollapse({ userId }: { userId?: string }) {
   const { setOpen } = useSidebar();
   const setOpenRef = useRef(setOpen);
@@ -296,9 +360,11 @@ export default function Home() {
       .filter(m => !m.isBlocked)
       .map(({ role, content }) => ({ role, content: content || "" }));
 
+    const sanitizedHistory = limitMessageHistorySize(messageHistory);
+
     const requestBody = {
       system: systemPrompt,
-      messages: messageHistory,
+      messages: sanitizedHistory,
       search_domain_filter: searchDomains.length > 0 ? searchDomains : undefined,
     };
 
