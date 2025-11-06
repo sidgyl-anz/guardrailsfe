@@ -267,7 +267,7 @@ const AllSourcesCarousel = ({ references }: { references: NonNullable<ChatMessag
             <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 All Sources
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:gap-3 sm:overflow-x-auto sm:pb-2">
                 {references.map((reference, index) => {
                     const domain = getDomainFromUrl(reference.url);
                     const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
@@ -276,7 +276,7 @@ const AllSourcesCarousel = ({ references }: { references: NonNullable<ChatMessag
                         return (
                             <div
                                 key={`${label}-${index}`}
-                                className="min-w-[200px] rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+                                className="w-full rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground sm:min-w-[200px] sm:w-auto sm:flex-shrink-0"
                             >
                                 {label}
                             </div>
@@ -289,7 +289,7 @@ const AllSourcesCarousel = ({ references }: { references: NonNullable<ChatMessag
                             href={reference.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="min-w-[200px] flex-shrink-0 rounded-lg border border-border bg-background p-3 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50"
+                            className="w-full rounded-lg border border-border bg-background p-3 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:min-w-[200px] sm:w-auto sm:flex-shrink-0"
                         >
                             <div className="text-sm font-medium text-foreground line-clamp-2">{label}</div>
                             {domain && (
@@ -327,19 +327,20 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
     );
 
     return (
-        <div className="group flex items-start gap-4">
+        <div className="group flex w-full items-start gap-3 sm:gap-4">
             {avatar}
 
-            <div className="relative flex items-start max-w-full">
+            <div className="min-w-0 flex-1">
                 <div
                     className={cn(
-                        'max-w-4xl rounded-xl p-6 shadow-sm text-left',
+                        'relative w-full max-w-full rounded-xl p-4 shadow-sm text-left sm:max-w-3xl sm:p-5 lg:max-w-4xl lg:p-6',
+                        hasGuardrailInfo && 'pr-12 sm:pr-14',
                         isUser ? 'bg-card' : 'bg-primary',
                         message.isBlocked && 'bg-muted border'
                     )}
                 >
                     {message.isBlocked && (
-                        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
+                        <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                             <Ban className="h-4 w-4" />
                             <span>This content was blocked by the safety filter.</span>
                         </div>
@@ -355,23 +356,24 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                             <AllSourcesCarousel references={message.references} />
                         )}
                     </div>
+
+                    {hasGuardrailInfo && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                                'absolute right-3 top-3 h-7 w-7 transition-colors sm:right-4 sm:top-4',
+                                message.isBlocked
+                                    ? 'text-red-600 hover:text-red-700 hover:bg-red-50 focus-visible:ring-red-500'
+                                    : 'text-green-600 hover:text-green-700 hover:bg-green-50 focus-visible:ring-green-500'
+                            )}
+                            onClick={onGuardrailClick}
+                        >
+                            {message.isBlocked ? <ShieldAlert className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
+                            <span className="sr-only">View Guardrail Details</span>
+                        </Button>
+                    )}
                 </div>
-                {hasGuardrailInfo && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                            'ml-2 h-7 w-7 self-start transition-colors',
-                            message.isBlocked
-                                ? 'text-red-600 hover:text-red-700 hover:bg-red-50 focus-visible:ring-red-500'
-                                : 'text-green-600 hover:text-green-700 hover:bg-green-50 focus-visible:ring-green-500'
-                        )}
-                        onClick={onGuardrailClick}
-                    >
-                        {message.isBlocked ? <ShieldAlert className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
-                        <span className="sr-only">View Guardrail Details</span>
-                    </Button>
-                )}
             </div>
         </div>
     );
@@ -387,13 +389,13 @@ const BlinkingDots = () => (
 
 export function LoadingMessage() {
     return (
-        <div className="flex items-start gap-4">
+        <div className="flex w-full items-start gap-3 sm:gap-4">
             <Avatar className="h-10 w-10 border bg-primary text-primary-foreground">
                 <AvatarFallback className="bg-transparent text-blue-500">
                     <HeartPulse />
                 </AvatarFallback>
             </Avatar>
-            <div className="max-w-4xl rounded-xl p-6 shadow-sm bg-primary text-primary-foreground">
+            <div className="w-full max-w-full rounded-xl bg-primary p-4 text-primary-foreground shadow-sm sm:max-w-3xl sm:p-5 lg:max-w-4xl lg:p-6">
                 <BlinkingDots />
             </div>
         </div>
