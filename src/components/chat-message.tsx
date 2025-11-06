@@ -267,7 +267,7 @@ const AllSourcesCarousel = ({ references }: { references: NonNullable<ChatMessag
             <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 All Sources
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:gap-3 sm:overflow-x-auto sm:pb-2">
                 {references.map((reference, index) => {
                     const domain = getDomainFromUrl(reference.url);
                     const label = reference.title?.trim() || domain || reference.url || `Source ${index + 1}`;
@@ -276,7 +276,7 @@ const AllSourcesCarousel = ({ references }: { references: NonNullable<ChatMessag
                         return (
                             <div
                                 key={`${label}-${index}`}
-                                className="min-w-[200px] rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+                                className="w-full rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground sm:min-w-[200px] sm:w-auto sm:flex-shrink-0"
                             >
                                 {label}
                             </div>
@@ -289,7 +289,7 @@ const AllSourcesCarousel = ({ references }: { references: NonNullable<ChatMessag
                             href={reference.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="min-w-[200px] flex-shrink-0 rounded-lg border border-border bg-background p-3 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50"
+                            className="w-full rounded-lg border border-border bg-background p-3 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:min-w-[200px] sm:w-auto sm:flex-shrink-0"
                         >
                             <div className="text-sm font-medium text-foreground line-clamp-2">{label}</div>
                             {domain && (
