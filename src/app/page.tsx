@@ -37,6 +37,70 @@ type ApiTransaction = {
   response: any;
 };
 
+type MinimalMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+const MAX_REQUEST_CHARACTERS = 80_000;
+const MAX_MESSAGE_CHARACTERS = 6_000;
+const MIN_MESSAGES_TO_PRESERVE = 6;
+const MAX_MESSAGES_TO_PRESERVE = 40;
+
+function limitMessageHistorySize(messages: MinimalMessage[]): MinimalMessage[] {
+  if (messages.length === 0) {
+    return messages;
+  }
+
+  const normalized = messages.map(message => ({
+    role: message.role,
+    content: (message.content ?? '').slice(-MAX_MESSAGE_CHARACTERS),
+  }));
+
+  const limitedByCount = normalized.slice(
+    -Math.max(MIN_MESSAGES_TO_PRESERVE, Math.min(MAX_MESSAGES_TO_PRESERVE, normalized.length))
+  );
+
+  let totalChars = 0;
+  const preserved: MinimalMessage[] = [];
+
+  for (let index = limitedByCount.length - 1; index >= 0; index -= 1) {
+    const current = limitedByCount[index];
+    const available = MAX_REQUEST_CHARACTERS - totalChars;
+
+    if (available <= 0) {
+      break;
+    }
+
+    let content = current.content;
+    if (content.length > available) {
+      content = content.slice(-available);
+    }
+
+    preserved.unshift({ role: current.role, content });
+    totalChars += content.length;
+  }
+
+  if (preserved.length === 0) {
+    const lastMessage = normalized[normalized.length - 1];
+    return [
+      {
+        role: lastMessage.role,
+        content: lastMessage.content.slice(-Math.min(MAX_MESSAGE_CHARACTERS, MAX_REQUEST_CHARACTERS)),
+      },
+    ];
+  }
+
+  if (preserved.length < messages.length) {
+    preserved[0] = {
+      role: preserved[0].role,
+      content: `Earlier messages were truncated for length.\n\n${preserved[0].content}`,
+    };
+  }
+
+  return preserved;
+}
+
 function SidebarAutoCollapse({ userId }: { userId?: string }) {
   const { setOpen } = useSidebar();
   const setOpenRef = useRef(setOpen);
@@ -91,12 +155,14 @@ export default function Home() {
   const [selectedGuardrailResult, setSelectedGuardrailResult] = useState<any>(null);
   const [lastApiTransaction, setLastApiTransaction] = useState<ApiTransaction | null>(null);
   const [isStartingNewConversation, setIsStartingNewConversation] = useState(false);
-  
+  const hasUserOpenedConversationRef = useRef(false);
+
   const { searchDomains, systemPrompt, useGuardrails, isSettingsReady } = useSettings();
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const viewportRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const creatingConversationRef = useRef(false);
   
   const handleGuardrailCheck = async (data: { user_prompt?: string; llm_response?: string }) => {
@@ -139,6 +205,7 @@ export default function Home() {
       const conversationRef = await addDocumentNonBlocking(conversationsRef, newConversationData);
       if (conversationRef) {
         const createdConversation = { id: conversationRef.id, ...newConversationData };
+        hasUserOpenedConversationRef.current = true;
         setActiveConversation(createdConversation);
         setIsStartingNewConversation(false);
         return createdConversation;
@@ -150,6 +217,7 @@ export default function Home() {
   }, [firestore, user]);
 
   const startNewConversation = useCallback(() => {
+    hasUserOpenedConversationRef.current = true;
     setIsStartingNewConversation(true);
     setActiveConversation(null);
   }, []);
@@ -157,6 +225,7 @@ export default function Home() {
   useEffect(() => {
     if (!user) {
       setActiveConversation(null);
+      hasUserOpenedConversationRef.current = false;
     }
     creatingConversationRef.current = false;
     setIsStartingNewConversation(false);
@@ -184,7 +253,7 @@ export default function Home() {
         const latestData = { id: latestConvo.id, ...(latestConvo.data() as Omit<Conversation, 'id'>) };
 
         if (!activeConversation) {
-          if (!isStartingNewConversation) {
+          if (!isStartingNewConversation && hasUserOpenedConversationRef.current) {
             setActiveConversation(latestData);
           }
           return;
@@ -192,6 +261,7 @@ export default function Home() {
 
         const currentExists = snapshot.docs.find((docSnapshot) => docSnapshot.id === activeConversation.id);
         if (!currentExists && !isStartingNewConversation) {
+          hasUserOpenedConversationRef.current = true;
           setActiveConversation(latestData);
         }
       },
@@ -218,6 +288,12 @@ export default function Home() {
         viewportRef.current.scrollTo({ top: viewportRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -296,9 +372,11 @@ export default function Home() {
       .filter(m => !m.isBlocked)
       .map(({ role, content }) => ({ role, content: content || "" }));
 
+    const sanitizedHistory = limitMessageHistorySize(messageHistory);
+
     const requestBody = {
       system: systemPrompt,
-      messages: messageHistory,
+      messages: sanitizedHistory,
       search_domain_filter: searchDomains.length > 0 ? searchDomains : undefined,
     };
 
@@ -387,6 +465,7 @@ export default function Home() {
             activeConversation={activeConversation}
             onConversationSelect={(conversation) => {
               setIsStartingNewConversation(false);
+              hasUserOpenedConversationRef.current = true;
               setActiveConversation(conversation);
             }}
             onCreateNew={startNewConversation}
@@ -457,6 +536,7 @@ export default function Home() {
                     onChange={(e) => setInput(e.target.value)}
                     placeholder={user ? 'Ask anything...' : 'Please log in to start a conversation.'}
                     className="min-h-[52px] resize-none border-input bg-white pr-20 shadow-lg"
+                    ref={inputRef}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
