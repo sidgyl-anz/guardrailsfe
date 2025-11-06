@@ -155,6 +155,7 @@ export default function Home() {
   const [selectedGuardrailResult, setSelectedGuardrailResult] = useState<any>(null);
   const [lastApiTransaction, setLastApiTransaction] = useState<ApiTransaction | null>(null);
   const [isStartingNewConversation, setIsStartingNewConversation] = useState(false);
+  const hasUserOpenedConversationRef = useRef(false);
   
   const { searchDomains, systemPrompt, useGuardrails, isSettingsReady } = useSettings();
   const { user } = useUser();
@@ -203,6 +204,7 @@ export default function Home() {
       const conversationRef = await addDocumentNonBlocking(conversationsRef, newConversationData);
       if (conversationRef) {
         const createdConversation = { id: conversationRef.id, ...newConversationData };
+        hasUserOpenedConversationRef.current = true;
         setActiveConversation(createdConversation);
         setIsStartingNewConversation(false);
         return createdConversation;
@@ -214,6 +216,7 @@ export default function Home() {
   }, [firestore, user]);
 
   const startNewConversation = useCallback(() => {
+    hasUserOpenedConversationRef.current = true;
     setIsStartingNewConversation(true);
     setActiveConversation(null);
   }, []);
@@ -221,6 +224,7 @@ export default function Home() {
   useEffect(() => {
     if (!user) {
       setActiveConversation(null);
+      hasUserOpenedConversationRef.current = false;
     }
     creatingConversationRef.current = false;
     setIsStartingNewConversation(false);
@@ -248,7 +252,7 @@ export default function Home() {
         const latestData = { id: latestConvo.id, ...(latestConvo.data() as Omit<Conversation, 'id'>) };
 
         if (!activeConversation) {
-          if (!isStartingNewConversation) {
+          if (!isStartingNewConversation && hasUserOpenedConversationRef.current) {
             setActiveConversation(latestData);
           }
           return;
@@ -256,6 +260,7 @@ export default function Home() {
 
         const currentExists = snapshot.docs.find((docSnapshot) => docSnapshot.id === activeConversation.id);
         if (!currentExists && !isStartingNewConversation) {
+          hasUserOpenedConversationRef.current = true;
           setActiveConversation(latestData);
         }
       },
@@ -453,6 +458,7 @@ export default function Home() {
             activeConversation={activeConversation}
             onConversationSelect={(conversation) => {
               setIsStartingNewConversation(false);
+              hasUserOpenedConversationRef.current = true;
               setActiveConversation(conversation);
             }}
             onCreateNew={startNewConversation}
