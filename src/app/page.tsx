@@ -156,12 +156,13 @@ export default function Home() {
   const [lastApiTransaction, setLastApiTransaction] = useState<ApiTransaction | null>(null);
   const [isStartingNewConversation, setIsStartingNewConversation] = useState(false);
   const hasUserOpenedConversationRef = useRef(false);
-  
+
   const { searchDomains, systemPrompt, useGuardrails, isSettingsReady } = useSettings();
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const viewportRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const creatingConversationRef = useRef(false);
   
   const handleGuardrailCheck = async (data: { user_prompt?: string; llm_response?: string }) => {
@@ -287,6 +288,12 @@ export default function Home() {
         viewportRef.current.scrollTo({ top: viewportRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -529,6 +536,7 @@ export default function Home() {
                     onChange={(e) => setInput(e.target.value)}
                     placeholder={user ? 'Ask anything...' : 'Please log in to start a conversation.'}
                     className="min-h-[52px] resize-none border-input bg-white pr-20 shadow-lg"
+                    ref={inputRef}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
