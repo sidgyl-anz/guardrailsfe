@@ -1,7 +1,7 @@
 
 # Safe Health Chat
 
-Safe Health Chat is a responsive, secure, health-focused chat application built with Next.js and Firebase. It leverages the Perplexity AI API to provide users with safe and informative answers to their health-related questions. The application features user authentication, persistent chat history, configurable information source filtering, integrated safety guardrails, and rich inline citations.
+Safe Health Chat is a responsive, secure, health-focused chat application built with Next.js and Firebase. It leverages the Perplexity AI API to provide users with safe and informative answers to their health-related questions. The application features user authentication, persistent chat history, configurable information source filtering, integrated safety guardrails, and rich inline citations
 
 ## Features
 
