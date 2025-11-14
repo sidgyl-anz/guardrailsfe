@@ -73,6 +73,14 @@ const getReferencedSources = (
     return referencedSources;
 };
 
+const stripInlineCitationMarkers = (content: string, shouldStrip: boolean) => {
+    if (!shouldStrip || !content) {
+        return content;
+    }
+
+    return content.replace(/(\s*)\[(\d+)\]/g, (_, whitespace: string) => whitespace);
+};
+
 const AllSourcesCarousel = ({ references }: { references: NonNullable<ChatMessageType['references']> }) => {
     if (!references || references.length === 0) {
         return null;
@@ -127,6 +135,10 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
         () => getReferencedSources(message.content, message.references),
         [message.content, message.references]
     );
+    const displayContent = React.useMemo(
+        () => stripInlineCitationMarkers(message.content, !isUser),
+        [message.content, isUser]
+    );
 
     const avatar = (
         <Avatar
@@ -171,7 +183,7 @@ export function ChatMessage({ message, onGuardrailClick }: ChatMessageProps) {
                             message.isBlocked ? 'text-muted-foreground italic' : ''
                         )}
                     >
-                        <MemoizedReactMarkdown content={message.content} />
+                        <MemoizedReactMarkdown content={displayContent} />
                         {!message.isBlocked && inlineReferences.length > 0 && (
                             <AllSourcesCarousel references={inlineReferences} />
                         )}
