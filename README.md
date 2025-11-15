@@ -124,6 +124,30 @@ npm run dev
 
 The application will be available at `http://localhost:9002`.
 
+### 6. Deploying to Vercel
+
+You can deploy this project to [Vercel](https://vercel.com/) in just a few steps:
+
+1. **Create a Vercel Project**
+   - Sign in to Vercel and click **Add New... → Project**.
+   - Import this GitHub repository (or your fork) and select the `main` branch.
+
+2. **Configure Environment Variables**
+   - In the new project's **Settings → Environment Variables**, add the same variables defined in your local `.env` file (e.g., `PERPLEXITY_API_KEY`, Firebase config values, and any custom guardrail URLs).
+   - Repeat the variables for each environment (`Production`, `Preview`, and optionally `Development`) so your previews behave like production.
+
+3. **Set the Build Configuration**
+   - Vercel automatically detects Next.js projects. Ensure the build command is `npm run build` and the output directory remains the default `.next`.
+   - If you use a custom Node.js version locally, set **Environment → General → Node.js Version** to match (the project currently targets Node 18 LTS).
+
+4. **Link Firebase**
+   - Add your Firebase project's authorized domains by navigating to **Firebase Console → Authentication → Settings → Authorized Domains** and adding your `*.vercel.app` domain so hosted builds can sign in users.
+
+5. **Trigger the Deployment**
+   - Click **Deploy** in Vercel. Each push to the selected branch (and pull requests) will automatically create new deployments. Use the **Preview** URL to test before promoting to production.
+
+Once deployed, Vercel will handle SSL, CDN caching, and automatic scaling, so no additional infrastructure is required.
+
 ## How It Works
 
 1.  A user signs up or logs in via the **`AuthDialog`**. The `useUser` hook provides their authentication state throughout the app.
