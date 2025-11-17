@@ -89,16 +89,18 @@ Create a `.env` file in the root of the project and add your API keys and servic
 
 ```.env
 PERPLEXITY_API_KEY="your_perplexity_api_key_here"
+NEXT_PUBLIC_FIREBASE_API_KEY="your_firebase_web_api_key"
 ```
 
 You can get a Perplexity API key from the [Perplexity AI Developer Portal](https://docs.perplexity.ai/).
+The Firebase Web API key is available in your Firebase project's web app settings.
 
 ### 2. Firebase Setup
 
 This project uses Firebase for authentication and Firestore as a database.
 1.  Create a new Firebase project in the [Firebase Console](https://console.firebase.google.com/).
 2.  Add a new Web App to your project.
-3.  Copy the Firebase configuration object and paste it into `src/firebase/config.ts`.
+3.  Copy the Firebase configuration object and paste it into `src/firebase/config.ts`, replacing the `NEXT_PUBLIC_FIREBASE_API_KEY` environment variable value in your `.env` file.
 4.  In the Firebase Console, go to **Authentication** -> **Sign-in method** and enable the **Email/Password** provider.
 5.  Go to **Firestore Database**, create a database, and start in **Production mode**. You will apply security rules in the next step.
 
