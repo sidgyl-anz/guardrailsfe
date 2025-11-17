@@ -126,6 +126,28 @@ npm run dev
 
 The application will be available at `http://localhost:9002`.
 
+## Required Inputs & External Dependencies
+
+The chat flow depends on a few explicit inputs and files. The project will not boot (or will crash at runtime) if any of these requirements are missing:
+
+- **Environment variables**
+  - `PERPLEXITY_API_KEY`: Required by the server-side Genkit flow in `src/ai/flows/chat.ts`. If it is undefined the API call short-circuits with `PERPLEXITY_API_KEY is not defined in environment variables.`
+  - `NEXT_PUBLIC_FIREBASE_API_KEY`: Used by `src/firebase/config.ts` to initialize Firebase when running locally. The file throws an error when the value is absent, so populate it even if you rely on Firebase App Hosting defaults in production.
+- **`.env` file**
+  - Create the file in the project root and define the variables above. Any other Firebase values (auth domain, project ID, etc.) should be duplicated from your Firebase console when you customize `src/firebase/config.ts`.
+- **Firebase configuration file**
+  - The template in `src/firebase/config.ts` contains a placeholder project. Replace the `projectId`, `appId`, `authDomain`, and other fields with your project's metadata if you are not using Firebase App Hosting auto-configuration.
+- **Firestore security rules**
+  - The `firestore.rules` file in the root of the repo must be deployed to the same Firebase project that the app talks to. Without those rules, reads and writes performed by hooks such as `useCollection` will fail.
+- **Firestore data layout**
+  - User-specific data is stored under the `users/{uid}` document. The `use-settings` hook stores `searchDomains`, `systemPrompt`, and `useGuardrails` on that document, so the authenticated user needs write access there.
+  - Conversations live at `users/{uid}/conversations/{conversationId}` with fields `title` and `createdAt` (`serverTimestamp`). Each conversation also contains a `messages` sub-collection with documents shaped like `ChatMessage` in `src/lib/types.ts` (`role`, `content`, `createdAt`, optional `references`, `guardrailResult`, and `isBlocked`). Ensure your Firestore rules allow these nested writes.
+- **Guardrails service**
+  - `src/app/actions.ts` posts to the Cloud Run URL stored in `GUARDRAILS_URL`. Update that constant (or replace it with an environment variable) so it points at your guardrail endpoint.
+  - The service must accept JSON payloads that include either `user_prompt` or `llm_response` (or both) and return a JSON object with at least `is_safe: boolean`. Optional fields such as `prompt_processed` or `llm_response_processed` are honored if present; the UI stores the raw response in `guardrailResult` for auditing.
+- **`/api/chat` payload contract**
+  - The frontend sends requests to `POST /api/chat` (handled by `src/app/api/chat/route.ts`). The body must be valid JSON that follows the `ChatInput` schema defined in `src/ai/flows/chat.ts`: a `messages` array of `{role: 'user' | 'assistant', content: string}` objects, an optional `system` string, and an optional `search_domain_filter` string array. The server rejects requests that cannot be parsed or do not contain at least one non-empty user message.
+
 ### 6. Deploying to Vercel
 
 You can deploy this project to [Vercel](https://vercel.com/) in just a few steps:
