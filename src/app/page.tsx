@@ -42,6 +42,106 @@ type MinimalMessage = {
   content: string;
 };
 
+type SearchResult = {
+  url?: string;
+  title?: string;
+  metadata?: {
+    cleaned_open_access?: string;
+    doi?: string;
+    title?: string;
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+const DOI_BASE_URL = 'http://dx.doi.org/';
+const DOI_URL_PATTERN = /^https?:\/\/(dx\.)?doi\.org\//i;
+
+const normalizeDoi = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return trimmed.replace(DOI_URL_PATTERN, '');
+};
+
+const buildDoiUrl = (doi?: string): string | undefined => {
+  if (!doi) {
+    return undefined;
+  }
+  return `${DOI_BASE_URL}${doi}`;
+};
+
+const ensureCleanedOpenAccessUrl = (result: SearchResult): string | undefined => {
+  const metadata =
+    result && typeof result.metadata === 'object' && result.metadata !== null
+      ? result.metadata
+      : undefined;
+
+  const existing = typeof metadata?.cleaned_open_access === 'string'
+    ? metadata.cleaned_open_access.trim()
+    : '';
+  if (existing) {
+    return existing;
+  }
+
+  const doi = normalizeDoi(metadata?.doi);
+  if (!doi) {
+    return undefined;
+  }
+
+  const doiUrl = buildDoiUrl(doi);
+  result.metadata = {
+    ...(metadata ?? {}),
+    cleaned_open_access: doiUrl,
+  };
+  return doiUrl;
+};
+
+const mapSearchResultsToReferences = (results: SearchResult[] | undefined | null) => {
+  if (!Array.isArray(results)) {
+    return [];
+  }
+
+  return results
+    .map((result, index) => {
+      if (!result || typeof result !== 'object') {
+        return null;
+      }
+
+      const metadata =
+        result.metadata && typeof result.metadata === 'object'
+          ? result.metadata
+          : undefined;
+
+      const cleanedOpenAccessUrl = ensureCleanedOpenAccessUrl(result);
+      const fallbackDoiUrl = !cleanedOpenAccessUrl ? buildDoiUrl(normalizeDoi(metadata?.doi)) : undefined;
+      const candidateUrl =
+        cleanedOpenAccessUrl ||
+        (typeof result.url === 'string' && result.url.trim().length > 0 ? result.url : undefined) ||
+        fallbackDoiUrl;
+
+      if (!candidateUrl) {
+        return null;
+      }
+
+      const titleSource =
+        (typeof result.title === 'string' && result.title.trim().length > 0
+          ? result.title
+          : typeof metadata?.title === 'string' && metadata.title.trim().length > 0
+            ? metadata.title
+            : undefined) ?? `Source ${index + 1}`;
+
+      return { url: candidateUrl, title: titleSource };
+    })
+    .filter((reference): reference is { url: string; title: string } => Boolean(reference));
+};
+
 const MAX_REQUEST_CHARACTERS = 80_000;
 const MAX_MESSAGE_CHARACTERS = 6_000;
 const MIN_MESSAGES_TO_PRESERVE = 6;
@@ -402,7 +502,7 @@ export default function Home() {
       setLastApiTransaction({ request: requestBody, response: data });
 
       let aiResponseContent = data.choices[0].message.content;
-      let references = data.search_results?.map((r: any) => ({ url: r.url, title: r.title || r.url })) || [];
+      let references = mapSearchResultsToReferences(data.search_results);
 
       const outputGuardrailResult = await handleGuardrailCheck({ llm_response: aiResponseContent });
 
